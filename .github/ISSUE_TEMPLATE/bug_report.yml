@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Kolbaba doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please leave out anything private: no real email content, addresses, passwords or tokens.
+        Found a security problem? Don't open an issue, follow SECURITY.md instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen
+      options:
+        - Hosted app (app.kolbaba.app)
+        - My own server (self-hosted)
+        - Local development
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: For a self-hosted server, the image tag (for example 1.4.2). For development, the commit.
+  - type: input
+    id: mailbox
+    attributes:
+      label: Mailbox provider
+      description: Gmail, Outlook, iCloud, your own domain on IMAP…, if it's about mail.
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      description: For example "iPhone, installed on the Home Screen" or "Mac, Chrome".
+  - type: textarea
+    id: more
+    attributes:
+      label: Screenshots, logs, anything else
+      description: For a self-hosted server, `docker compose logs --tail 50 kolbaba` helps.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/jakubSt28/kolbaba/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately by email, not in an issue.
+  - name: Help with setting up your own server
+    url: https://kolbaba.app/self-hosted
+    about: The self-hosting guide, and paid help if you'd rather have it set up for you.

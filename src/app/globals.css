@@ -1,0 +1,656 @@
+@import "tailwindcss";
+
+/* Light or dark comes from <html data-theme>, set before the first paint (src/lib/theme-script.ts) from Settings → Appearance or the system. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* While the on-screen keyboard is up (<html data-keyboard>, src/lib/keyboard.ts). */
+@custom-variant keyboard (&:where([data-keyboard] *));
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-solid: var(--solid);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+  --color-tab: var(--tab);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-pin: var(--pin);
+  --color-pin-soft: var(--pin-soft);
+  --color-pin-line: var(--pin-line);
+  --color-warm: var(--warm);
+  /* The postcard's handwriting (next/font Caveat, loaded where the postcard is). */
+  --font-hand: var(--font-caveat), "Bradley Hand", "Segoe Print", cursive;
+}
+
+/* ---------- Surfaces & ink ---------- */
+:root {
+  --canvas: #e9edf3;
+  --panel: rgb(255 255 255 / 0.82);
+  --solid: #ffffff;
+  --glass: rgb(255 255 255 / 0.58);
+  --glass-strong: rgb(250 251 253 / 0.9);
+  --sheet: rgb(250 251 253 / 0.97);
+  --tab: #ffffff;
+  --glass-border: rgb(255 255 255 / 0.85);
+  --ink: #141821;
+  --ink-2: #4b5466;
+  --ink-3: #8790a2;
+  --line: rgb(20 30 50 / 0.08);
+  --hover: rgb(20 30 50 / 0.045);
+  --selected: rgb(20 30 50 / 0.075);
+  --success: oklch(0.62 0.14 160);
+  --warning: oklch(0.74 0.15 70);
+  --danger: oklch(0.6 0.2 25);
+  /* Pinned mail: a sticky-note amber, the same in every accent. */
+  --pin: oklch(0.7 0.16 62);
+  --pin-soft: oklch(0.97 0.035 80);
+  --pin-line: oklch(0.83 0.09 75 / 0.55);
+  /* Warm letters: mail from people you write with (the ace of hearts in Čapek's postman tale). */
+  --warm: oklch(0.62 0.19 25);
+  /* Kolbaba's postcards and stamps: paper stays paper, in dark mode just a touch dimmer. */
+  --paper: #fbf8f1;
+  --paper-ink: #2d2b33;
+  --paper-line: rgb(45 43 51 / 0.22);
+  /* A spring as a CSS easing: a quick settle with a hint of overshoot. */
+  --ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%, 1.067, 1.099 24.3%, 1.108 26%, 1.105, 1.089 30.9%, 1.033 37.4%, 1.008 41.5%, 0.995 45.9%, 0.99 50.4%, 0.996 63.6%, 1.001 75.8%, 1);
+  --shadow-panel: 0 0 0 0.5px rgb(20 30 50 / 0.06), 0 1px 2px rgb(16 24 40 / 0.04),
+    0 12px 32px -16px rgb(16 24 40 / 0.14);
+  --shadow-float: 0 0 0 0.5px rgb(20 30 50 / 0.08), 0 2px 6px rgb(16 24 40 / 0.06),
+    0 16px 40px -12px rgb(16 24 40 / 0.22);
+  --shadow-bar: 0 0 0 1px rgb(20 30 50 / 0.11), 0 4px 12px rgb(16 24 40 / 0.1), 0 18px 44px -12px rgb(16 24 40 / 0.32);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #090b0f;
+  --panel: rgb(23 26 33 / 0.78);
+  --solid: #15181e;
+  --glass: rgb(32 36 45 / 0.55);
+  --glass-strong: rgb(30 34 42 / 0.92);
+  --sheet: rgb(30 34 42 / 0.98);
+  --tab: rgb(255 255 255 / 0.1);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --ink: #eceff4;
+  --ink-2: #a9b1c1;
+  --ink-3: #6d7588;
+  --line: rgb(255 255 255 / 0.07);
+  --hover: rgb(255 255 255 / 0.045);
+  --selected: rgb(255 255 255 / 0.08);
+  --pin: oklch(0.78 0.14 70);
+  --pin-soft: oklch(0.24 0.03 70);
+  --pin-line: oklch(0.55 0.08 70 / 0.45);
+  --warm: oklch(0.7 0.17 25);
+  --paper: #ece6d8;
+  --shadow-panel: 0 0 0 0.5px rgb(255 255 255 / 0.06), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --shadow-float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+  --shadow-bar: 0 0 0 1px rgb(255 255 255 / 0.13), 0 18px 44px -12px rgb(0 0 0 / 0.8);
+  color-scheme: dark;
+}
+
+/* ---------- App colours (Settings → App colour; the list lives in src/lib/brand.ts) ---------- */
+:root {
+  --accent-l: 0.6;
+  --accent-c: 0.115;
+  --accent-h: 200;
+}
+:root,
+[data-accent] {
+  --accent: oklch(var(--accent-l) var(--accent-c) var(--accent-h));
+  --accent-hover: oklch(calc(var(--accent-l) - 0.05) var(--accent-c) var(--accent-h));
+  --accent-soft: oklch(var(--accent-l) var(--accent-c) var(--accent-h) / 0.13);
+  /* Links and text on the page: never lighter than 0.5, so light colours stay readable. */
+  --accent-text: oklch(min(0.5, calc(var(--accent-l) - 0.12)) calc(var(--accent-c) * 0.9) var(--accent-h));
+  --on-accent: #fff;
+}
+[data-accent="slate"] {
+  --accent-l: 0.52;
+  --accent-c: 0.035;
+  --accent-h: 255;
+}
+[data-accent="cocoa"] {
+  --accent-l: 0.52;
+  --accent-c: 0.07;
+  --accent-h: 50;
+}
+[data-accent="ember"] {
+  --accent-l: 0.65;
+  --accent-c: 0.17;
+  --accent-h: 38;
+}
+[data-accent="amber"] {
+  --accent-l: 0.74;
+  --accent-c: 0.15;
+  --accent-h: 75;
+}
+[data-accent="moss"] {
+  --accent-l: 0.58;
+  --accent-c: 0.12;
+  --accent-h: 150;
+}
+[data-accent="pine"] {
+  --accent-l: 0.5;
+  --accent-c: 0.08;
+  --accent-h: 175;
+}
+[data-accent="lagoon"] {
+  --accent-l: 0.6;
+  --accent-c: 0.115;
+  --accent-h: 200;
+}
+[data-accent="ocean"] {
+  --accent-l: 0.56;
+  --accent-c: 0.17;
+  --accent-h: 255;
+}
+[data-accent="iris"] {
+  --accent-l: 0.56;
+  --accent-c: 0.2;
+  --accent-h: 285;
+}
+[data-accent="orchid"] {
+  --accent-l: 0.6;
+  --accent-c: 0.19;
+  --accent-h: 330;
+}
+[data-accent="rose"] {
+  --accent-l: 0.62;
+  --accent-c: 0.19;
+  --accent-h: 12;
+}
+[data-accent="amber"] {
+  --on-accent: #1a1e27;
+}
+[data-accent="ink"] {
+  --accent: #1a1e27;
+  --accent-hover: #2a303c;
+  --accent-soft: rgb(26 30 39 / 0.08);
+  --accent-text: #1a1e27;
+  --on-accent: #fff;
+}
+:root[data-theme="dark"],
+[data-theme="dark"] [data-accent] {
+  --accent-text: oklch(0.8 min(0.1, var(--accent-c)) var(--accent-h));
+}
+[data-theme="dark"][data-accent="ink"],
+[data-theme="dark"] [data-accent="ink"] {
+  --accent: #eef1f6;
+  --accent-hover: #ffffff;
+  --accent-soft: rgb(238 241 246 / 0.1);
+  --accent-text: #eef1f6;
+  --on-accent: #12151b;
+}
+
+/* ---------- Per-mailbox colours: set --h on the element ---------- */
+.hue-dot {
+  background: oklch(0.7 0.15 var(--h));
+}
+.hue-tint {
+  background: oklch(0.94 0.04 var(--h));
+  color: oklch(0.45 0.12 var(--h));
+}
+.hue-text {
+  color: oklch(0.52 0.13 var(--h));
+}
+[data-theme="dark"] .hue-dot {
+  background: oklch(0.72 0.13 var(--h));
+}
+[data-theme="dark"] .hue-tint {
+  background: oklch(0.32 0.06 var(--h));
+  color: oklch(0.86 0.08 var(--h));
+}
+[data-theme="dark"] .hue-text {
+  color: oklch(0.8 0.1 var(--h));
+}
+
+/* ---------- Glass ---------- */
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: inset 0 0 0 0.5px var(--glass-border);
+}
+.glass-strong {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: inset 0 0 0 0.5px var(--glass-border), var(--shadow-float);
+}
+/*
+ * Big windows over a dimmed backdrop (Settings, Collection, What's new): the glass look without the live
+ * blur. Blurring what's behind on every scroll frame made them flicker, and the scrim already dims it.
+ */
+.sheet {
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 0.5px var(--glass-border), var(--shadow-float);
+}
+/* A bar floating over mail content (the reader's actions, the phone's search and selection): opaque, so the email can't show through, with a clear edge. */
+.action-bar {
+  background: var(--solid);
+  box-shadow: var(--shadow-bar);
+}
+.panel {
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+}
+.shadow-float {
+  box-shadow: var(--shadow-float);
+}
+
+/* Soft colour fields behind the glass, so the blur has something to catch. */
+.canvas {
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(60vw 50vh at 0% 0%, oklch(0.85 0.08 var(--accent-h, 200) / 0.45), transparent 70%),
+    radial-gradient(50vw 45vh at 100% 100%, oklch(0.88 0.07 30 / 0.35), transparent 70%),
+    radial-gradient(40vw 40vh at 70% 10%, oklch(0.9 0.06 290 / 0.3), transparent 70%);
+}
+[data-theme="dark"] .canvas {
+  background-image:
+    radial-gradient(60vw 50vh at 0% 0%, oklch(0.35 0.08 var(--accent-h, 200) / 0.35), transparent 70%),
+    radial-gradient(50vw 45vh at 100% 100%, oklch(0.3 0.06 30 / 0.3), transparent 70%),
+    radial-gradient(40vw 40vh at 70% 10%, oklch(0.3 0.06 290 / 0.25), transparent 70%);
+}
+
+/* ---------- App shell ---------- */
+/*
+ * The whole screen: exactly the area WebKit paints. In a Home Screen app on iOS 26 that can be one
+ * status bar short of the screen (WebKit bug 301108); the strip below can't be painted by any CSS, and
+ * a taller shell only pushes the bottom bar into it. There the home indicator sits in that strip, so
+ * the page drops its own bottom inset (--safe-bottom, set by src/lib/standalone-viewport.ts).
+ */
+.app-shell {
+  position: fixed;
+  inset: 0;
+}
+.app-height {
+  height: 100dvh;
+}
+:root {
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+:root[data-short-viewport] {
+  --safe-bottom: 0px;
+}
+/*
+ * The on-screen keyboard (src/lib/keyboard.ts). iOS doesn't shrink the page for it, it covers the bottom
+ * and slides the screen up, header and all. While it's up the shell takes exactly the area above it, so
+ * the header stays and the bars at the bottom (Send, the search) sit on the keyboard. The home indicator
+ * is under the keyboard then: no bottom inset.
+ */
+:root[data-keyboard] {
+  --safe-bottom: 0px;
+}
+:root[data-keyboard] .app-shell {
+  top: var(--visible-top, 0px);
+  bottom: auto;
+  height: var(--visible-height, 100%);
+}
+
+/*
+ * iOS 26 Home Screen app, the status bar strip: iOS paints it in the colour of the fixed box it finds
+ * at the top edge. The first time that box changes (a header swapped, a drawer or overlay on top, a
+ * page that had none at first paint) it switches to blurring the page into the strip and the ~40pt
+ * below it, our header included, until the app is closed. So one box is always the one it finds: this
+ * one, in the root layout from the first paint, above everything. Only its colour changes (--top-edge,
+ * set by the phone layout); WebKit ignores boxes 10px tall or less. Touch screens only: a Mac web app
+ * has no status bar.
+ */
+#top-edge {
+  display: none;
+}
+@media (display-mode: standalone) and (pointer: coarse) {
+  #top-edge {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: max(env(safe-area-inset-top), 12px);
+    z-index: 2147483647;
+    pointer-events: none;
+    background: var(--top-edge, var(--canvas));
+    transition: background-color 0.25s;
+  }
+  .desktop-shell {
+    padding-top: calc(max(env(safe-area-inset-top), 12px) + 0.5rem);
+  }
+}
+
+/* ---------- Base ---------- */
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-feature-settings: "cv11", "ss03";
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+::selection {
+  background: var(--accent-soft);
+}
+/* Everything clickable gets a pointer. */
+button:not(:disabled),
+a[href],
+summary,
+label:has(> input[type="file"]),
+input[type="checkbox"],
+input[type="radio"],
+[role="button"],
+[role="tab"],
+[role="switch"],
+[role="menuitem"],
+[role="menuitemradio"],
+[role="option"],
+[cmdk-item] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+:where(button, a, [role="button"], [role="tab"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:where(input, textarea, [contenteditable]):focus-visible {
+  outline: none;
+}
+/* iOS zooms into a field with text under 16px when it gets focus, and stays zoomed: on touch screens fields are 16px. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  textarea,
+  select,
+  [contenteditable="true"],
+  .editor .ProseMirror.ProseMirror {
+    font-size: 16px;
+  }
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- Mail body (incoming HTML) ---------- */
+.mail-body {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.mail-body p {
+  margin: 0 0 0.85em;
+}
+.mail-body p:last-child {
+  margin-bottom: 0;
+}
+.mail-body a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--accent-text) 35%, transparent);
+  text-underline-offset: 2px;
+}
+.mail-body h1,
+.mail-body h2,
+.mail-body h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 1.2em 0 0.5em;
+}
+.mail-body h1 {
+  font-size: 1.5em;
+}
+.mail-body h2 {
+  font-size: 1.25em;
+}
+.mail-body ul,
+.mail-body ol {
+  margin: 0 0 0.85em;
+  padding-left: 1.4em;
+}
+.mail-body ul {
+  list-style: disc;
+}
+.mail-body ol {
+  list-style: decimal;
+}
+.mail-body blockquote {
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+  color: var(--ink-2);
+  margin: 0 0 0.85em;
+}
+.mail-body hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.25em 0;
+}
+.mail-body .cta {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--solid);
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* ---------- Editor (Tiptap) ---------- */
+.editor .ProseMirror {
+  outline: none;
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 160px;
+}
+.editor .ProseMirror > * + * {
+  margin-top: 0.5em;
+}
+.editor .ProseMirror h1 {
+  font-size: 1.6em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin-top: 0.8em;
+}
+.editor .ProseMirror h2 {
+  font-size: 1.3em;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin-top: 0.7em;
+}
+.editor .ProseMirror h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-top: 0.6em;
+}
+.editor .ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.editor .ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.editor .ProseMirror li > p {
+  margin: 0;
+}
+.editor .ProseMirror li + li {
+  margin-top: 0.2em;
+}
+.editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.1em;
+}
+.editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  gap: 0.55em;
+  align-items: flex-start;
+}
+.editor .ProseMirror ul[data-type="taskList"] li > label {
+  margin-top: 0.28em;
+  user-select: none;
+}
+.editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+.editor .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.editor .ProseMirror blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+  color: var(--ink-2);
+}
+.editor .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1em 0;
+}
+.editor .ProseMirror pre {
+  background: var(--hover);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.editor .ProseMirror code {
+  background: var(--hover);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+.editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+.editor .ProseMirror img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+.editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+.editor .ProseMirror a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.editor .ProseMirror p.is-empty::before,
+.editor .ProseMirror h1.is-empty::before,
+.editor .ProseMirror h2.is-empty::before,
+.editor .ProseMirror h3.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-3);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Hide placeholders on all but the focused empty line (Notion-style). */
+.editor .ProseMirror:not(:focus) p.is-empty:not(:first-child)::before {
+  content: none;
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * The dialogs centre themselves with Tailwind's -translate-x/y-1/2, which is the `translate` property: a
+ * `transform` here adds to it. So only the small lift and zoom; a translate(-50%) here flung every
+ * dialog in from the top-left corner: that was the flash.
+ */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(2%) scale(0.97);
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * A button that gives under the finger and springs back when let go, like a physical one.
+ * Owns the element's transitions (colours too), so don't combine it with transition-* classes.
+ * --press-scale sets how deep it goes.
+ */
+@utility press {
+  transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+  transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 520ms;
+  transition-timing-function: ease, ease, ease, ease, ease, var(--ease-spring);
+  &:active:not(:disabled) {
+    scale: var(--press-scale, 0.95);
+    transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 90ms;
+    transition-timing-function: ease, ease, ease, ease, ease, ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Dragging conversations onto a folder ---------- */
+.drag-ghost {
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 500;
+}

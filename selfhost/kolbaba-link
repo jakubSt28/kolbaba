@@ -1,0 +1,5 @@
+#!/bin/sh
+# Prints a one-time link to create an account or sign in (worker/login-link.ts).
+cd /app || exit 1
+export $(node -e "const s=JSON.parse(require('fs').readFileSync(process.env.SECRETS_FILE||'/data/secrets.json','utf8'));console.log(Object.entries(s).map(([k,v])=>k+'='+v).join(' '))")
+exec node_modules/.bin/tsx worker/login-link.ts "$@"

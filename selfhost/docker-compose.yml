@@ -1,0 +1,104 @@
+# Kolbaba on your own server. Everything you can set is in .env (selfhost/.env.example, README.md).
+# Install and update: selfhost/README.md. The image is public: no login needed.
+services:
+  kolbaba:
+    image: ghcr.io/jakubst28/kolbaba:${KOLBABA_VERSION:-1}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_URL: ${APP_URL:-https://${DOMAIN}}
+      DATABASE_URL: postgres://kolbaba:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/kolbaba
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      SIGNUP_ALLOWLIST: ${SIGNUP_ALLOWLIST:-}
+      UPDATE_CHECK: ${UPDATE_CHECK:-on}
+    volumes:
+      - kolbaba_data:/data
+    # Only this computer can reach it directly: from outside, through Caddy or Tailscale.
+    ports:
+      - "127.0.0.1:3000:3000"
+    labels:
+      # Only this container updates by itself. The database and Caddy stay as they are.
+      com.centurylinklabs.watchtower.enable: "true"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kolbaba
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: kolbaba
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kolbaba -d kolbaba"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # A copy of the database every day into ./backups, kept for 14 days, with the secrets that unlock it.
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./backups:/backups
+      - kolbaba_data:/data:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        umask 077
+        while true; do
+          file="/backups/kolbaba-$$(date +%F).dump"
+          pg_dump -h postgres -U kolbaba -Fc kolbaba > "$$file.tmp" && mv "$$file.tmp" "$$file" && echo "backup: $$file"
+          cp /data/secrets.json /backups/secrets.json 2>/dev/null
+          find /backups -name 'kolbaba-*.dump' -mtime +14 -delete
+          sleep 86400
+        done
+
+  # HTTPS with a certificate that renews itself. Needs ports 80 and 443 and a domain pointing at this server.
+  caddy:
+    image: caddy:2-alpine
+    profiles: [https]
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:-localhost} --to kolbaba:3000
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+
+  # Installs new versions at night. Leave "autoupdate" out of COMPOSE_PROFILES to update by hand.
+  # (The community fork: the original Watchtower was archived in December 2025.)
+  watchtower:
+    image: nickfedor/watchtower:latest
+    profiles: [autoupdate]
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_SCHEDULE: "0 0 3 * * *"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Docker's login file, for a registry that needs one. The public image doesn't; install.sh creates an empty one.
+      - ${DOCKER_CONFIG_FILE:-${HOME}/.docker/config.json}:/config.json:ro
+
+volumes:
+  kolbaba_data:
+  postgres_data:
+  caddy_data:

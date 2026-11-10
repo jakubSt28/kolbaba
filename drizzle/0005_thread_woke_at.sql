@@ -1,0 +1,1 @@
+ALTER TABLE "threads" ADD COLUMN "woke_at" timestamp with time zone;
