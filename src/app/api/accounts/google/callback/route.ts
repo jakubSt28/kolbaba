@@ -6,7 +6,11 @@ import { translate } from "@/lib/i18n";
 import { consumeChallenge } from "@/server/auth/challenges";
 import { getUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
+import { exchangeGoogleCalendarCode } from "@/server/calendar/google";
+import { connectOAuth } from "@/server/calendar/service";
+import { CalendarAuthError } from "@/server/calendar/types";
 import { exchangeGmailCode } from "@/server/google";
+import { HttpError } from "@/server/http-error";
 import { requestLocale } from "@/server/i18n";
 import { upsertAccount } from "@/server/mail/accounts";
 import { MailAuthError } from "@/server/mail/types";
@@ -32,10 +36,28 @@ export async function GET(req: Request) {
   if (!user) return Response.redirect(new URL("/login", req.url), 303);
   if (url.searchParams.get("error")) return back({ connect_error: translate(locale, "Google sign-in was cancelled") });
 
-  const challenge = await consumeChallenge<{ codeVerifier: string }>(token, "mailbox-oauth");
+  const challenge = await consumeChallenge<{ codeVerifier: string; calendar?: boolean; accountId?: string | null }>(token, "mailbox-oauth");
   const code = url.searchParams.get("code");
   if (!challenge || challenge.userId !== user.id || challenge.challenge !== url.searchParams.get("state") || !code) {
     return back({ connect_error: translate(locale, "That took too long. Please try again.") });
+  }
+
+  // The same way back serves Google Calendar: its permission was asked for instead of Gmail's.
+  if (challenge.data.calendar) {
+    try {
+      const grant = await exchangeGoogleCalendarCode(code, challenge.data.codeVerifier);
+      await connectOAuth(user.id, "google", grant, challenge.data.accountId);
+      return back({ calendar: "", calendar_connected: grant.email });
+    } catch (err) {
+      logWarn("google calendar connect failed", err);
+      const message =
+        err instanceof HttpError
+          ? translate(locale, err.text, err.vars)
+          : err instanceof CalendarAuthError
+            ? translate(locale, "Calendar access wasn't allowed. Try again and keep the calendar checkboxes ticked.")
+            : translate(locale, "Couldn't connect Google Calendar. Please try again.");
+      return back({ calendar: "", connect_error: message });
+    }
   }
 
   try {

@@ -19,7 +19,8 @@ export const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
  */
 export const GMAIL_SCOPES = ["openid", "email", "profile", GMAIL_MODIFY_SCOPE];
 
-function client() {
+/** The OAuth client with the one redirect address registered at Google; connecting a calendar goes through it too. */
+export function googleClient() {
   return new Google(env.googleClientId, env.googleClientSecret, `${env.appUrl}/api/accounts/google/callback`);
 }
 
@@ -32,7 +33,7 @@ export function gmailAuthUrl({
   codeVerifier: string;
   loginHint?: string;
 }): URL {
-  const url = client().createAuthorizationURL(state, codeVerifier, GMAIL_SCOPES);
+  const url = googleClient().createAuthorizationURL(state, codeVerifier, GMAIL_SCOPES);
   // offline + consent: Google only returns a refresh token on the first consent unless we force it again.
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
@@ -52,7 +53,7 @@ export interface GmailGrant {
 }
 
 export async function exchangeGmailCode(code: string, codeVerifier: string): Promise<GmailGrant> {
-  const tokens = await client().validateAuthorizationCode(code, codeVerifier);
+  const tokens = await googleClient().validateAuthorizationCode(code, codeVerifier);
   if (!tokens.hasRefreshToken()) throw new Error("Google returned no refresh token (prompt=consent missing?)");
   const scope = tokens.hasScopes() ? tokens.scopes().join(" ") : "";
   // Granular consent lets the user untick the Gmail checkbox; without it the mailbox is useless.
@@ -84,7 +85,7 @@ export interface RefreshedToken {
 export async function refreshAccessToken(refreshToken: string): Promise<RefreshedToken> {
   let tokens: OAuth2Tokens;
   try {
-    tokens = await client().refreshAccessToken(refreshToken);
+    tokens = await googleClient().refreshAccessToken(refreshToken);
   } catch (error) {
     // invalid_grant = revoked by the user, password change, or a "Testing" app's 7-day expiry.
     if (error instanceof OAuth2RequestError && error.code === "invalid_grant") {

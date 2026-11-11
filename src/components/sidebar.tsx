@@ -53,7 +53,9 @@ import { cn } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { LATEST_NOTE } from "@/lib/whats-new";
 import { droppedThreads, isThreadDrag } from "@/lib/drag-threads";
+import { useCalendar } from "@/lib/calendar/store";
 import { BrandMark } from "./brand-mark";
+import { CalendarSidebar, ModeSwitch } from "./calendar/calendar-sidebar";
 import { openFolderDialog } from "./folders";
 import { installLabel, startInstall, useInstall } from "./install-guide";
 import { FolderGlyph, NavIcon, PlayContext, TravelIcon, type IconGesture } from "./nav-icon";
@@ -128,7 +130,9 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
     (s) => s.agentEvents.filter((e) => e.undoable && !e.undone && now - e.at < 86_400_000).length,
   );
   const layout = useMail((s) => s.sidebar);
-  const editing = useMail((s) => s.sidebarEditing) && !collapsed;
+  // The calendar has its own sidebar under the same name and switch (components/calendar/calendar-sidebar.tsx).
+  const calendar = useCalendar((s) => s.mode === "calendar");
+  const editing = useMail((s) => s.sidebarEditing) && !collapsed && !calendar;
   const setEditing = useMail((s) => s.setSidebarEditing);
   const [moreOpen, setMoreOpen] = useMoreOpen();
   const folders = useMail((s) => s.folders);
@@ -264,7 +268,7 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
 
   return (
     <nav className={cn("group/nav flex h-full flex-col gap-1 px-2.5 pt-3 pb-2.5 select-none", collapsed && "items-center px-2")}>
-      <div className={cn("mb-2 flex items-center gap-1", collapsed && "justify-center")}>
+      <div className={cn("mb-2 flex items-center gap-1", collapsed && "flex-col gap-2")}>
         {/* The name opens What's new and tips; a dot says there's something new. */}
         <button
           onClick={() => {
@@ -279,10 +283,12 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
             {unseenNews && collapsed && <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent ring-2 ring-[var(--glass-strong)]" />}
           </span>
           {!collapsed && <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{BRAND.name}</span>}
-          {!collapsed && unseenNews && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent-text">{t("New@@news")}</span>}
+          {!collapsed && unseenNews && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("New@@news")} />}
         </button>
+        {/* Mail or calendar: two apps under one name. */}
+        {!editing && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
         {/* Edit, where iOS Mail has it: always there on a touch screen, with the pointer over the sidebar on a computer. */}
-        {!collapsed && !editing && (
+        {!collapsed && !editing && !calendar && (
           <Tooltip label={t("Edit sidebar")} side="bottom">
             <button
               onClick={() => setEditing(true)}
@@ -296,7 +302,9 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
         )}
       </div>
 
-      {editing ? (
+      {calendar ? (
+        <CalendarSidebar collapsed={collapsed} onNavigate={onNavigate} />
+      ) : editing ? (
         <SidebarEditor sections={sections} onDone={() => setEditing(false)} />
       ) : (
         <>

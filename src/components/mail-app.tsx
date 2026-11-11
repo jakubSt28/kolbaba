@@ -11,6 +11,7 @@ import { pushState, registerServiceWorker, setBadge } from "@/lib/push-client";
 import { badgeTotal, isFolderId, useMail } from "@/lib/store";
 import { useShortcuts } from "@/lib/use-shortcuts";
 import { applyTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import { ShortcutsHost } from "./shortcuts-help";
 import { CommandPalette } from "./command-palette";
 import { ConfirmHost } from "./confirm";
@@ -30,6 +31,8 @@ import { Sidebar } from "./sidebar";
 import { Toaster } from "./toaster";
 import { WelcomeHost } from "./welcome";
 import { ImagesExplainerHost } from "./images-explainer";
+import { openCalendarLink, restoreMode, useCalendar } from "@/lib/calendar/store";
+import { CalendarHosts, CalendarMain, MobileCalendar } from "./calendar/calendar-app";
 
 /** No click, key, wheel, touch or mouse movement for this long: nobody's looking, so the minute's refresh rests. */
 const IDLE_AFTER_MS = 5 * 60_000;
@@ -48,7 +51,8 @@ function useMedia(query: string) {
 }
 
 /**
- * Links into the app: notifications open `/?thread=…`, `/?activity` (an agent's action) or `/?settings`,
+ * Links into the app: notifications open `/?thread=…`, `/?activity` (an agent's action), `/?settings` or
+ * `/?calendar=2026-11-12&event=…` (a reminder),
  * the Gmail connect flow comes back with `?connected=…` or `?connect_error=…`, and a new version loads
  * where you were with `?mailbox=…&folder=…&thread=…` (src/lib/app-update.ts). Handle them once, then
  * clean the address bar.
@@ -83,6 +87,13 @@ async function handleDeepLink(url: URL) {
   if (p.has("activity")) useMail.getState().openActivity("agents");
   // "?settings=agents" opens that section (the website's recipes link there).
   if (p.has("settings")) useMail.getState().setSettingsOpen(true, p.get("settings") || undefined);
+  // The calendar: a reminder's day and event, or the way back from Google's or Microsoft's permission page.
+  if (p.has("calendar")) {
+    closeOverlays();
+    openCalendarLink(p.get("calendar"), p.get("event"));
+    const added = p.get("calendar_connected");
+    if (added) pushToast({ message: t("The calendars of {name} are here", { name: added }) });
+  }
   const connected = p.get("connected");
   if (connected) {
     const account = useMail.getState().accounts.find((a) => a.id === connected);
@@ -114,7 +125,9 @@ export function MailApp() {
   // Not a re-mount: that would replay every opening animation and reset scroll, Settings included.
   const locale = resolveLocale(useMail((s) => s.language));
   if (getLocale() !== locale) setLocale(locale);
-  useShortcuts(!isMobile);
+  // Mail or calendar: the other one stays as it was, out of sight, for the way back.
+  const calendar = useCalendar((s) => s.mode === "calendar");
+  useShortcuts(!isMobile && !calendar);
 
   useEffect(() => {
     document.documentElement.dataset.accent = accent;
@@ -126,12 +139,17 @@ export function MailApp() {
     const registered = registerServiceWorker();
     if (!LIVE) {
       // The prototype has its mail from the start; links into it land right away.
+      restoreMode();
       void handleDeepLink(new URL(window.location.href));
       return;
     }
     const { init, refresh } = useMail.getState();
     const started = init();
-    void started.then(() => handleDeepLink(new URL(window.location.href)));
+    // A reload while the calendar was open comes back to it; a link that opens mail then wins.
+    void started.then(() => {
+      restoreMode();
+      return handleDeepLink(new URL(window.location.href));
+    });
     // Notifications Safari dropped come back on opening and on every return (src/lib/push-client.ts), once
     // it's settled whose device this is.
     void Promise.all([registered, started]).then(() => pushState());
@@ -232,7 +250,7 @@ export function MailApp() {
 
   useEffect(() => {
     // Handy for poking at the prototype from devtools.
-    if (process.env.NODE_ENV !== "production") Object.assign(window, { __mail: useMail });
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __mail: useMail, __calendar: useCalendar });
   }, []);
 
   return (
@@ -241,7 +259,11 @@ export function MailApp() {
         <>
           {isMobile ? (
             <>
-              <MobileShell />
+              {/* The mail stays mounted under the calendar: its place in the list is there on the way back. */}
+              <div className={calendar ? "hidden" : "contents"}>
+                <MobileShell />
+              </div>
+              {calendar && <MobileCalendar />}
               <Toaster className="fixed bottom-[calc(84px+var(--safe-bottom))]" />
             </>
           ) : (
@@ -252,18 +274,26 @@ export function MailApp() {
                     <Sidebar collapsed={narrow} />
                   </div>
                 </aside>
-                <section className="panel w-[360px] shrink-0 overflow-hidden rounded-[18px] lg:w-[390px]">
+                {/* The mail's two panes stay mounted (hidden) while the calendar is open: the open email and the list keep their place. */}
+                <section className={cn("panel w-[360px] shrink-0 overflow-hidden rounded-[18px] lg:w-[390px]", calendar && "hidden")}>
                   <MessageList />
                 </section>
-                <main className="panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]">
+                <main className={cn("panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]", calendar && "hidden")}>
                   <Reader />
                   {/* Centred in the reader so toasts sit right above the floating action bar. */}
-                  <Toaster className="absolute bottom-[84px]" />
+                  {!calendar && <Toaster className="absolute bottom-[84px]" />}
                 </main>
+                {calendar && (
+                  <main className="panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]">
+                    <CalendarMain />
+                    <Toaster className="absolute bottom-6" />
+                  </main>
+                )}
               </div>
               <CommandPalette />
             </>
           )}
+          <CalendarHosts mobile={isMobile} />
           <ConfirmHost />
           <CollectionHost />
           <SnoozeSheetHost />

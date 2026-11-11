@@ -76,6 +76,8 @@ export const LIMITS = {
   ],
   mailboxDetect: (userId: string): Limit => ({ key: `mailbox-detect:user:${userId}`, max: 60, windowMs: HOUR }),
   mailboxAdd: (userId: string): Limit => ({ key: `mailbox-add:user:${userId}`, max: 20, windowMs: HOUR }),
+  /** Connecting a calendar signs in to a server with a password or downloads a file from a link. */
+  calendarConnect: (userId: string): Limit => ({ key: `calendar-connect:user:${userId}`, max: 30, windowMs: HOUR }),
   /** MCP clients registering themselves (RFC 7591). */
   oauthRegister: (ip: string): Limit => ({ key: `oauth-register:ip:${ip}`, max: 10, windowMs: HOUR }),
   /** Emails an AI agent may send: messages and recipients per hour, per agent and for the user overall. */

@@ -3,6 +3,7 @@ import { accounts } from "./accounts";
 import { admin } from "./admin";
 import { app } from "./app";
 import { auth } from "./auth";
+import { calendar } from "./calendar";
 import { categories } from "./categories";
 import { compose } from "./compose";
 import { contacts } from "./contacts";
@@ -23,6 +24,7 @@ export const CS: Dictionary = {
   ...accounts,
   ...admin,
   ...auth,
+  ...calendar,
   ...categories,
   ...compose,
   ...contacts,

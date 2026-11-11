@@ -13,6 +13,7 @@ import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { openInstallGuide, turnOnNotifications, useInstallGuide } from "./install-guide";
 import { Group, Row, Toggle } from "./settings";
+import { EventReminderSetting } from "./calendar/reminder-setting";
 import { NotificationsPreview, PeopleOnlyPreview } from "./settings-previews";
 import { MailboxBadge, menuContentClass, menuItemClass, Segmented } from "./ui";
 
@@ -72,6 +73,7 @@ export function NotificationSettings({ mobile = false }: { mobile?: boolean }) {
           <Toggle on={codeInNotification} label={t("Show sign-in codes in notifications")} onChange={setCodeInNotification} />
         </Row>
       </Group>
+      <EventReminderSetting />
     </>
   );
 }

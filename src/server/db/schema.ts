@@ -15,6 +15,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { AttendeeStatus, CalendarSettings, CalendarSourceKind, EventAttendee } from "@/lib/calendar/types";
 import type { AgentStep, AwayReply, BadgeMode, HistoryKind, Insight, InsightCategory, LegacyAwayReply, NotifyMode, QuietHours, RuleAction, ThreadSummary } from "@/lib/types";
 import type { Sealed } from "../crypto";
 import type { Invite } from "../mail/ics";
@@ -120,6 +121,8 @@ export type UserSettings = {
   awayReplies?: AwayReply[];
   /** The single reply from before there could be several; read as the first of `awayReplies` until those are saved. */
   away?: LegacyAwayReply;
+  /** The calendar: when it was first opened, the view, reminders (src/lib/calendar/types.ts). */
+  calendar?: CalendarSettings;
 };
 
 /* -------------------------------- Feedback -------------------------------- */
@@ -601,6 +604,163 @@ export const mailFolders = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("mail_folders_user_name_idx").on(t.userId, sql`lower(${t.name})`)],
+);
+
+/* -------------------------------- Calendars -------------------------------- */
+
+/** How Kolbaba signs in to a calendar account of its own (one that didn't come with a mailbox's password). */
+export type CalendarCredentials =
+  | { kind: "oauth"; issuer: "google" | "microsoft"; refreshToken: string; accessToken?: string; expiresAt?: number; scope?: string }
+  | { kind: "password"; username: string; password: string };
+
+/**
+ * Where calendars come from: a Google or Microsoft account, a CalDAV account, a link to an .ics file
+ * that updates by itself ("feed"), or Kolbaba's own ("local": one per user, holding the calendars made
+ * here and imported files). Calendars stay at their provider; what's here is a copy to show quickly.
+ */
+export const calendarSources = pgTable(
+  "calendar_sources",
+  {
+    id: id("cso"),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text().$type<CalendarSourceKind>().notNull(),
+    /** The mailbox it came with: its calendars go when the mailbox is disconnected. Null: added on its own. */
+    accountId: text().references(() => accounts.id, { onDelete: "cascade" }),
+    /** Whose calendars these are (the sign-in address), or the host a feed comes from. */
+    label: text().notNull().default(""),
+    /** CalDAV: the calendar home. Feed: the .ics address. */
+    url: text(),
+    /** Sealed CalendarCredentials. Null: CalDAV with the mailbox's own password, a feed, Kolbaba's own calendars. */
+    credentials: jsonb().$type<Sealed>(),
+    status: text().$type<"ok" | "auth_error" | "error">().notNull().default("ok"),
+    statusMessage: text(),
+    /** When the list of its calendars was last read from the provider. */
+    listedAt: ts(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId)],
+);
+
+export const calendars = pgTable(
+  "calendars",
+  {
+    id: id("cal"),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sourceId: text()
+      .notNull()
+      .references(() => calendarSources.id, { onDelete: "cascade" }),
+    /** Google calendar id, Graph calendar id or CalDAV collection URL; a random one for feeds and Kolbaba's own. */
+    providerId: text().notNull(),
+    name: text().notNull(),
+    /** 0–360, drawn like mailbox colours. */
+    hue: integer().notNull(),
+    /** Ticked in the list: its events show. */
+    visible: boolean().notNull().default(true),
+    readOnly: boolean().notNull().default(false),
+    /** The account's main calendar: new events go here unless another is picked. */
+    primary: boolean().notNull().default(false),
+    /** The window of events copied here, and when it was last read from the provider. */
+    syncedFrom: ts(),
+    syncedTo: ts(),
+    syncedAt: ts(),
+    /** Feed: what the last download said about itself, to skip an unchanged file. `searchedAt`: when the wide window that search looks in was last read (ms). */
+    syncState: jsonb().$type<{ etag?: string; lastModified?: string; searchedAt?: number }>().notNull().default({}),
+    sortOrder: integer().notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId), uniqueIndex().on(t.sourceId, t.providerId)],
+);
+
+/**
+ * Kolbaba's own calendars, imported files and feeds: one iCalendar object per event (a repeating
+ * one together with its exceptions), the way a CalDAV server keeps them.
+ */
+export const calendarObjects = pgTable(
+  "calendar_objects",
+  {
+    id: id("cob"),
+    calendarId: text()
+      .notNull()
+      .references(() => calendars.id, { onDelete: "cascade" }),
+    uid: text().notNull(),
+    ics: text().notNull(),
+    /** When it first starts and last ends (null: repeats without end), so a window reads only what can fall in it. */
+    firstAt: ts(),
+    lastAt: ts(),
+    updatedAt: ts().notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex().on(t.calendarId, t.uid)],
+);
+
+/** Events of the copied window, one row per occurrence (a repeating event is many rows). */
+export const calendarEvents = pgTable(
+  "calendar_events",
+  {
+    id: id("evt"),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    calendarId: text()
+      .notNull()
+      .references(() => calendars.id, { onDelete: "cascade" }),
+    /** The occurrence at its provider (src/server/calendar/types.ts ProviderEvent). */
+    providerId: text().notNull(),
+    seriesId: text(),
+    uid: text(),
+    etag: text(),
+    title: text().notNull().default(""),
+    location: text().notNull().default(""),
+    description: text().notNull().default(""),
+    /** All-day events: midnight UTC of the first day and of the day after the last. */
+    startAt: ts().notNull(),
+    endAt: ts().notNull(),
+    allDay: boolean().notNull().default(false),
+    timeZone: text(),
+    /** The series' rule ("FREQ=WEEKLY;BYDAY=TU"); null for a single event. */
+    recurrence: text(),
+    organizer: jsonb().$type<Person | null>(),
+    attendees: jsonb().$type<EventAttendee[]>().notNull().default([]),
+    myStatus: text().$type<AttendeeStatus>(),
+    joinUrl: text(),
+    url: text(),
+    canEdit: boolean().notNull().default(true),
+    /** The start a reminder already went out for: a moved event reminds again. */
+    remindedFor: ts(),
+    updatedAt: ts().notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex().on(t.calendarId, t.providerId),
+    index().on(t.userId, t.startAt),
+    // Reminders: the worker looks at what starts in the next hour, across everyone.
+    index().on(t.startAt),
+  ],
+);
+
+/**
+ * An event's own reminder time, where it differs from the user's usual one. Kept here, not at the
+ * provider, so it works the same for every kind of calendar and for events the user can't change.
+ */
+export const calendarReminders = pgTable(
+  "calendar_reminders",
+  {
+    id: id("crm"),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    calendarId: text()
+      .notNull()
+      .references(() => calendars.id, { onDelete: "cascade" }),
+    /** One occurrence (calendar_events.providerId) or a whole series (seriesId); the occurrence's own wins. */
+    key: text().notNull(),
+    /** Minutes before the start; null: no reminder for this event. */
+    minutes: integer(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex().on(t.calendarId, t.key)],
 );
 
 /* --------------------------------- Threads --------------------------------- */
@@ -1091,6 +1251,8 @@ export const agents = pgTable(
     permission: text().$type<AgentPermission>().notNull().default("draft"),
     /** The mailboxes this agent may see; every agent has its own. */
     accountIds: jsonb().$type<string[]>().notNull().default([]),
+    /** The agent may read the calendar, and change it as far as `permission` goes. Off until the user turns it on. */
+    calendar: boolean().notNull().default(false),
     enabled: boolean().notNull().default(true),
     clientInfo: jsonb().$type<{ name?: string; version?: string; title?: string }>(),
     lastActiveAt: ts(),
@@ -1175,7 +1337,10 @@ export type AgentAction =
   | "unsubscribe"
   | "note"
   | "remind"
-  | "screen";
+  | "screen"
+  | "event_create"
+  | "event_update"
+  | "event_delete";
 
 export const agentEvents = pgTable(
   "agent_events",

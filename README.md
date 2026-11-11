@@ -25,6 +25,13 @@ shows up in the app, with Undo where the step can be undone.
 - All mailboxes in one list, or one at a time. The same mail and state on every device.
 - Changes go back to your provider: archive, pins, folders and drafts show up in other mail apps too.
 
+**Calendar**
+
+- A switch next to the name turns the app from mail to calendar: day, week and month, on a phone too.
+- Calendars of your mailboxes (Google, Outlook and Microsoft 365, and CalDAV: Seznam, iCloud, Fastmail, your own server), calendars followed by link (.ics), imported .ics files, and calendars kept in Kolbaba itself. Tick which ones you see.
+- Events you make or change are saved to the calendar they belong to, repeating ones too. Guests get an invitation by email; a notification reminds you before an event starts.
+- Drag an event to another time or day, search events by title, place, notes or guest, answer invitations, and give one event its own reminder time.
+
 **Inbox**
 
 - Archive, snooze, pin, mute, trash, spam, and "My history" to undo your own actions for 30 days.
@@ -115,7 +122,7 @@ Postgres and a few keys: [CONTRIBUTING.md](CONTRIBUTING.md) has the full setup, 
 | [`src/app`](src/app) | Next.js pages and API routes, including the MCP endpoint (`api/mcp`) |
 | [`src/components`](src/components) | The interface |
 | [`src/lib`](src/lib) | Code shared by the interface and the server: store, translations, release notes, sample data |
-| [`src/server`](src/server) | Sync (Gmail API, Microsoft, IMAP/SMTP), auth, encryption, MCP tools, smart features, billing |
+| [`src/server`](src/server) | Sync (Gmail API, Microsoft, IMAP/SMTP), the calendar (Google, Microsoft Graph, CalDAV, .ics), auth, encryption, MCP tools, smart features, billing |
 | [`worker/`](worker) | The always-on sync worker |
 | [`drizzle/`](drizzle) | Database migrations |
 | [`selfhost/`](selfhost) | Docker Compose setup and installer for your own server |

@@ -72,6 +72,12 @@ async function Overview({ searchParams }: { searchParams: SearchParams }) {
           warn={data.cards.month >= 50 && data.cards.hidden / data.cards.month > 0.05}
         />
         <Stat label={translate(locale, "Asked for setup help")} value={String(data.waitlist.length)} />
+        <Stat
+          label={translate(locale, "Opened the calendar")}
+          value={data.users.length ? `${data.calendar.opened} · ${percent(locale, data.calendar.opened / data.users.length)}` : "—"}
+          hint={translate(locale, "{week} in the last 7 days · {month} in 30", { week: String(data.calendar.week), month: String(data.calendar.month) })}
+        />
+        <Stat label={translate(locale, "Have a calendar connected")} value={String(data.calendar.connected)} />
       </div>
 
       <Usage usage={usage} others={others} locale={locale} />
@@ -191,7 +197,7 @@ function Users({ data, locale }: { data: AdminOverview; locale: Locale }) {
     <section>
       <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Registered users")}</h2>
       <div className="overflow-x-auto rounded-[16px] bg-solid shadow-[inset_0_0_0_0.5px_var(--line)]">
-        <table className="w-full min-w-[1080px] text-left text-[13px]">
+        <table className="w-full min-w-[1240px] text-left text-[13px]">
           <thead className="text-[11.5px] text-ink-3">
             <tr className="border-b border-line">
               <th className="px-4 py-2.5 font-medium">{translate(locale, "User")}</th>
@@ -201,6 +207,7 @@ function Users({ data, locale }: { data: AdminOverview; locale: Locale }) {
               <th className="px-3 py-2.5 font-medium">{translate(locale, "Mailboxes")}</th>
               <th className="px-3 py-2.5 font-medium">{translate(locale, "Devices")}</th>
               <th className="px-3 py-2.5 font-medium">{translate(locale, "AI agents")}</th>
+              <th className="px-3 py-2.5 font-medium">{translate(locale, "Calendar")}</th>
               <th className="px-3 py-2.5 font-medium">{translate(locale, "Smart categories")}</th>
               <th className="px-3 py-2.5 font-medium">Plus</th>
               <th className="px-3 py-2.5 font-medium">{translate(locale, "AI, 30 days")}</th>
@@ -248,6 +255,9 @@ function Users({ data, locale }: { data: AdminOverview; locale: Locale }) {
                   )}
                 </td>
                 <td className="px-3 py-3 text-ink-2 tabular-nums">{u.agents || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap text-ink-2">
+                  <CalendarUse u={u} locale={locale} />
+                </td>
                 <td className="px-3 py-3 text-ink-2">
                   {u.smartCategories ? translate(locale, "On") : translate(locale, "Off")}
                   {u.cards.month > 0 && (
@@ -276,6 +286,39 @@ function Users({ data, locale }: { data: AdminOverview; locale: Locale }) {
         </table>
       </div>
     </section>
+  );
+}
+
+const CALENDAR_KINDS: Record<string, string> = { google: "Google", microsoft: "Microsoft", caldav: "CalDAV", feed: ".ics", local: "Kolbaba" };
+
+/** Has this person ever opened the calendar, how often lately, and what they connected. */
+function CalendarUse({ u, locale }: { u: AdminOverview["users"][number]; locale: Locale }) {
+  const c = u.calendar;
+  if (!c.firstOpenedAt && !c.calendars) return <span className="text-ink-3">{translate(locale, "Never opened")}</span>;
+  return (
+    <>
+      {c.days
+        ? translateCount(locale, c.days, "{n} day of the last 30", "{n} days of the last 30")
+        : c.firstOpenedAt
+          ? translate(locale, "Not in the last 30 days")
+          : translate(locale, "Never opened")}
+      <div className="text-[11.5px] text-ink-3">
+        {[
+          c.firstOpenedAt ? translate(locale, "first {date}", { date: day(locale, c.firstOpenedAt.getTime()) }) : null,
+          c.lastOpenedAt && c.days ? translate(locale, "last {date}", { date: day(locale, c.lastOpenedAt.getTime()) }) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </div>
+      <div className="text-[11.5px] text-ink-3">
+        {[
+          c.calendars ? `${translateCount(locale, c.calendars, "{n} calendar", "{n} calendars")} (${c.kinds.map((k) => CALENDAR_KINDS[k] ?? k).join(", ")})` : translate(locale, "No calendar connected"),
+          c.eventsMade ? translateCount(locale, c.eventsMade, "{n} event made", "{n} events made") : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </div>
+    </>
   );
 }
 

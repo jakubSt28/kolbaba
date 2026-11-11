@@ -61,6 +61,18 @@ const GROUPS: { title: string; keys: [string[], string][] }[] = [
       [["⌘,"], tk("Settings")],
     ],
   },
+  // Keep in step with useCalendarShortcuts in src/components/calendar/calendar-app.tsx.
+  {
+    title: tk("Calendar"),
+    keys: [
+      [["C"], tk("New event")],
+      [["T"], tk("Go to today")],
+      [["J", "K"], tk("Next / previous")],
+      [["D", "W", "M"], tk("Day, week, month")],
+      [["/"], tk("Search events")],
+      [["R"], tk("Refresh")],
+    ],
+  },
 ];
 
 export function ShortcutsHost() {

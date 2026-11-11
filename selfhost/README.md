@@ -105,12 +105,13 @@ Everything is set in the `.env` file (it describes each setting) and applies aft
   account. Without a key these features are off and nothing goes anywhere.
 - **Gmail through Sign in with Google:** create an [OAuth client](https://console.cloud.google.com/apis/credentials)
   of type Web application with the redirect URIs `https://YOUR-DOMAIN/api/auth/google/callback` and
-  `https://YOUR-DOMAIN/api/accounts/google/callback`, turn on the Gmail API, set the app to "In production", and
-  fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+  `https://YOUR-DOMAIN/api/accounts/google/callback`, turn on the Gmail API (and the Google Calendar API for
+  Google calendars), set the app to "In production", and fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - **Outlook and Microsoft 365:** register an app in [Microsoft Entra](https://entra.microsoft.com) for "Any Entra
   ID tenant + personal Microsoft accounts", with the redirect URI (Web)
   `https://YOUR-DOMAIN/api/accounts/microsoft/callback`. Delegated permissions: Graph `openid`, `email`, `profile`,
-  `offline_access`, `Mail.Send`, and Office 365 Exchange Online `IMAP.AccessAsUser.All`, `SMTP.Send`. Fill in
+  `offline_access`, `Mail.Send`, `Calendars.ReadWrite` (for the calendar), and Office 365 Exchange Online
+  `IMAP.AccessAsUser.All`, `SMTP.Send`. Fill in
   `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`.
 - **At home through Tailscale, without a domain or open ports:** in `.env`, set `COMPOSE_PROFILES=autoupdate` and
   `APP_URL=https://your-computer.your-tailnet.ts.net`, run `docker compose up -d --remove-orphans`, then

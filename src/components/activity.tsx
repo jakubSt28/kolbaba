@@ -3,6 +3,7 @@
 import {
   Archive,
   CalendarClock,
+  CalendarDays,
   Check,
   ChevronDown,
   Clock,
@@ -14,8 +15,8 @@ import {
   MailOpen,
   Pin,
   Search,
-  Settings2,
   Send,
+  Settings2,
   SquareArrowOutUpRight,
   StickyNote,
   Trash2,
@@ -29,7 +30,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { describeStep, type StepFormat } from "@/lib/agent-steps";
 import { BRAND } from "@/lib/brand";
 import { intlLocale, t, tk, tn } from "@/lib/i18n";
-import { LIVE } from "@/lib/live";
+import { api, LIVE } from "@/lib/live";
 import { folderLabel, useMail } from "@/lib/store";
 import type { Agent, AgentAction, AgentEvent, AgentPermission, FolderId } from "@/lib/types";
 import { useNow } from "@/lib/use-now";
@@ -492,6 +493,17 @@ export function AgentRow({ agent, now }: { agent: Agent; now: number }) {
  * The mailboxes one agent may see, as chips to tap on and off. Each agent has its own: Claude can
  * have work mail while ChatGPT only sees the personal one.
  */
+/** Let an agent use the calendar, or stop it. Takes effect on its very next tool call. */
+function setAgentCalendar(agent: Agent, calendar: boolean) {
+  const put = (value: boolean) => useMail.setState((s) => ({ agents: s.agents.map((a) => (a.id === agent.id ? { ...a, calendar: value } : a)) }));
+  put(calendar);
+  if (!LIVE) return;
+  api.patch(`/api/agents/${agent.id}`, { calendar }).catch((err: Error) => {
+    put(!calendar);
+    useMail.getState().pushToast({ message: err.message });
+  });
+}
+
 export function AgentMailboxes({ agent }: { agent: Agent }) {
   const accounts = useMail((s) => s.accounts);
   const setMailboxes = useMail((s) => s.setAgentMailboxes);
@@ -520,6 +532,19 @@ export function AgentMailboxes({ agent }: { agent: Agent }) {
       {!agent.accountIds.some((id) => accounts.some((a) => a.id === id)) && (
         <span className="flex h-7 items-center text-[12px] text-ink-3">{t("Sees no mailbox yet")}</span>
       )}
+      {/* The calendar is shared apart from the mailboxes: reading it, and changing it as far as the access level goes. */}
+      <button
+        aria-pressed={!!agent.calendar}
+        onClick={() => setAgentCalendar(agent, !agent.calendar)}
+        className={cn(
+          "press flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors [--press-scale:0.95]",
+          agent.calendar ? "bg-accent-soft text-accent-text" : "text-ink-3 shadow-[inset_0_0_0_0.5px_var(--line)] hover:bg-hover hover:text-ink-2",
+        )}
+      >
+        <CalendarDays size={13} className="shrink-0" />
+        <span className="truncate">{t("Calendar")}</span>
+        {agent.calendar && <Check size={12} className="shrink-0" />}
+      </button>
     </div>
   );
 }

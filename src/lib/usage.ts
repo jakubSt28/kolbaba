@@ -23,6 +23,10 @@ export const FEATURE_GROUPS = [
     title: tk("Actions"),
     features: ["compose", "reply", "replyAll", "forward", "snooze", "schedule", "move", "summary", "unsubscribe", "calendar", "joinMeeting", "snippet", "swipe", "shortcuts", "remind", "mute", "block", "note", "print", "vip", "watch", "bundle", "rule", "bulkUnsubscribe", "offlineSend", "mention", "attachmentReminder"],
   },
+  {
+    title: tk("Calendar"),
+    features: ["calOpen", "calEventNew", "calEventEdit", "calEventDelete", "calRsvp", "calFilter", "calView", "calConnect", "calImport", "calFeed", "calJoin", "calMove", "calSearch", "calReminder"],
+  },
 ] as const;
 
 export type Feature = (typeof FEATURE_GROUPS)[number]["features"][number];
@@ -93,6 +97,20 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   offlineSend: tk("Sent without a signal"),
   mention: tk("@ mention"),
   attachmentReminder: tk("Forgotten attachment"),
+  calOpen: tk("Opening the calendar"),
+  calEventNew: tk("New event"),
+  calEventEdit: tk("Changing an event"),
+  calEventDelete: tk("Deleting an event"),
+  calRsvp: tk("Answering an invitation"),
+  calFilter: tk("Ticking calendars on and off"),
+  calView: tk("Switching day, week and month"),
+  calConnect: tk("Connecting a calendar account"),
+  calImport: tk("Importing an .ics file"),
+  calFeed: tk("Following a calendar by link"),
+  calJoin: tk("Joining a call from the calendar"),
+  calMove: tk("Moving an event by dragging"),
+  calSearch: tk("Searching events"),
+  calReminder: tk("Setting an event's own reminder"),
 };
 
 /** Opening a folder or view counts as using it; the user's own folders count together. */

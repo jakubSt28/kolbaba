@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CircleAlert, Eye, FilePen, Link2, LoaderCircle, Send, ShieldAlert, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, CircleAlert, Eye, FilePen, Link2, LoaderCircle, Send, ShieldAlert, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Fragment, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { BrandMark } from "@/components/brand-mark";
@@ -92,6 +92,13 @@ export interface ConsentMailbox {
   enabled: boolean;
 }
 
+/** What sharing the calendar lets the agent do at each access level (src/server/mcp/calendar-tools.ts). */
+const CALENDAR_HINT: Record<AgentPermission, string> = {
+  read: tk("See your events."),
+  draft: tk("See, add, change and delete your events. Can't invite guests."),
+  full: tk("See, add, change and delete your events, and invite guests by email."),
+};
+
 const subscribeNever = () => () => {};
 /** Clickjacking guard: never let the Allow button work inside someone else's frame. */
 const readFramed = () => window.top !== window.self;
@@ -108,6 +115,7 @@ export function ConsentCard({
   reconnecting,
   otherAgents,
   mailboxes: initialMailboxes,
+  calendar: initialCalendar,
   hidden,
   verified,
 }: {
@@ -122,6 +130,8 @@ export function ConsentCard({
   reconnecting: boolean;
   otherAgents: number;
   mailboxes: ConsentMailbox[];
+  /** Whether the calendar starts shared; null when the user has no calendar, and then it isn't asked about. */
+  calendar: boolean | null;
   hidden: Record<string, string>;
 }) {
   const reduce = useReducedMotion();
@@ -129,6 +139,7 @@ export function ConsentCard({
   const [permission, setPermission] = useState<AgentPermission>(defaultPermission);
   const [understood, setUnderstood] = useState(false);
   const [mailboxes, setMailboxes] = useState(initialMailboxes);
+  const [calendar, setCalendar] = useState(!!initialCalendar);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   const selected = mailboxes.filter((m) => m.enabled).length;
@@ -191,7 +202,7 @@ export function ConsentCard({
           </span>
         </div>
         <h1 id="consent-title" className="text-[21px] leading-tight font-semibold tracking-[-0.022em] text-balance text-ink">
-          {translate(locale, "{app} wants to access your mail", { app })}
+          {initialCalendar !== null ? translate(locale, "{app} wants to access your mail and calendar", { app }) : translate(locale, "{app} wants to access your mail", { app })}
         </h1>
         <p className="mt-1.5 text-[13.5px] text-ink-3">
           {reconnecting ? `${translate(locale, "Reconnecting")} · ` : ""}
@@ -218,6 +229,8 @@ export function ConsentCard({
         {mailboxes.filter((m) => m.enabled).map((m) => (
           <input key={m.id} type="hidden" name="mailbox" value={m.id} />
         ))}
+        {initialCalendar !== null && <input type="hidden" name="calendar_shown" value="1" />}
+        {initialCalendar !== null && calendar && <input type="hidden" name="calendar" value="1" />}
 
         {/* Access level */}
         <fieldset disabled={busy}>
@@ -305,6 +318,32 @@ export function ConsentCard({
             </p>
           )}
         </div>
+
+        {/* Calendar: shared apart from the mailboxes */}
+        {initialCalendar !== null && (
+          <div className="mt-6">
+            <div className="mb-2 px-1 text-[12px] font-medium text-ink-3">{translate(locale, "Calendar")}</div>
+            <div className="overflow-hidden rounded-2xl bg-solid/80 shadow-[inset_0_0_0_1px_var(--line)] dark:bg-white/[0.04]">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={calendar}
+                disabled={busy}
+                onClick={() => setCalendar((on) => !on)}
+                className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-hover disabled:cursor-default"
+              >
+                <span className={cn("flex size-[26px] shrink-0 items-center justify-center rounded-[8px] bg-accent-soft text-accent-text transition-opacity", !calendar && "opacity-45")}>
+                  <CalendarDays size={15} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block text-[13.5px] font-medium transition-colors", calendar ? "text-ink" : "text-ink-3")}>{translate(locale, "Your calendar")}</span>
+                  <span className="block text-[12px] leading-snug text-ink-3">{translate(locale, CALENDAR_HINT[permission])}</span>
+                </span>
+                <Switch on={calendar} />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div role="status" aria-live="polite">
           <AnimatePresence initial={false}>
@@ -481,14 +520,16 @@ function MailboxToggle({ mailbox, disabled, onToggle }: { mailbox: ConsentMailbo
         <span className={cn("block truncate text-[13.5px] font-medium transition-colors", mailbox.enabled ? "text-ink" : "text-ink-3")}>{mailbox.name}</span>
         <span className="block truncate text-[12px] text-ink-3">{mailbox.email}</span>
       </span>
-      <span className={cn("relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors", mailbox.enabled ? "bg-accent" : "bg-selected")}>
-        <motion.span
-          layout
-          transition={spring}
-          className={cn("absolute top-[2px] size-[18px] rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.2)]", mailbox.enabled ? "right-[2px]" : "left-[2px]")}
-        />
-      </span>
+      <Switch on={mailbox.enabled} />
     </button>
+  );
+}
+
+function Switch({ on }: { on: boolean }) {
+  return (
+    <span className={cn("relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors", on ? "bg-accent" : "bg-selected")}>
+      <motion.span layout transition={spring} className={cn("absolute top-[2px] size-[18px] rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.2)]", on ? "right-[2px]" : "left-[2px]")} />
+    </span>
   );
 }
 

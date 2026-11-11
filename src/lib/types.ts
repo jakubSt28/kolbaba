@@ -509,6 +509,8 @@ export interface Agent {
   permission: AgentPermission;
   /** The mailboxes it may see. */
   accountIds: string[];
+  /** It may read the calendar, and change it as far as `permission` goes. */
+  calendar?: boolean;
   enabled: boolean;
   lastActiveAt: number;
 }
@@ -552,7 +554,11 @@ export type AgentStep =
   | { kind: "trashed" | "unsubscribed" | "noted"; subject: string }
   | { kind: "reminder"; subject: string; at: string | null }
   | { kind: "screened"; who: string; allowed: boolean }
-  | { kind: "attachment"; name: string };
+  | { kind: "attachment"; name: string }
+  | { kind: "calendars" }
+  /** Dates as YYYY-MM-DD. */
+  | { kind: "events_listed"; from: string; to: string }
+  | { kind: "event_created" | "event_updated" | "event_deleted"; title: string; at: string; guests?: number };
 
 export type FolderId =
   | "inbox"

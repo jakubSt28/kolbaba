@@ -69,20 +69,21 @@ async function Consent({ searchParams }: { searchParams: PageProps<"/oauth/autho
 
   const { client, params } = check;
   const identity = identityFromRegistration(client);
-  const [accounts, [existing], others] = await Promise.all([
+  const [accounts, [existing], others, [hasCalendar]] = await Promise.all([
     db()
       .select()
       .from(schema.accounts)
       .where(eq(schema.accounts.userId, user.id))
       .orderBy(schema.accounts.sortOrder, schema.accounts.createdAt),
     db()
-      .select({ permission: schema.agents.permission, accountIds: schema.agents.accountIds })
+      .select({ permission: schema.agents.permission, accountIds: schema.agents.accountIds, calendar: schema.agents.calendar })
       .from(schema.agents)
       .where(and(eq(schema.agents.userId, user.id), eq(schema.agents.clientId, client.id))),
     db()
       .select({ id: schema.agents.id })
       .from(schema.agents)
       .where(and(eq(schema.agents.userId, user.id), eq(schema.agents.enabled, true), ne(schema.agents.clientId, client.id))),
+    db().select({ id: schema.calendars.id }).from(schema.calendars).where(eq(schema.calendars.userId, user.id)).limit(1),
   ]);
 
   const hidden: Record<string, string> = { consent: consentToken(user.id, params) };
@@ -112,6 +113,8 @@ async function Consent({ searchParams }: { searchParams: PageProps<"/oauth/autho
         // Reconnecting: what it had. New: a verified app starts with every mailbox ticked; anyone else gets nothing until you choose.
         enabled: existing ? existing.accountIds.includes(a.id) : identity.verified,
       }))}
+      // Only someone who has a calendar here is asked about it. The same rule as the mailboxes for what starts ticked.
+      calendar={hasCalendar ? (existing ? existing.calendar : identity.verified) : null}
       hidden={hidden}
     />
   );

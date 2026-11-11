@@ -40,6 +40,7 @@ import { notifyUser, userLocale } from "../push";
 import { claimOne, sendClaimed } from "../sync/outbox";
 import { hasWorker, nudgeWorker } from "../worker-client";
 import { logEvent, type EventInput, type RunContext, type UndoData } from "./activity";
+import { registerCalendarTools } from "./calendar-tools";
 import { attachmentLink, LINK_MINUTES } from "./attachment-links";
 import { allows, PERMISSION_LABELS } from "./config";
 import { textToEditorHtml } from "./markdown";
@@ -998,6 +999,8 @@ export function registerTools(server: McpServer, ctx: ToolContext) {
       };
     }),
   );
+
+  registerCalendarTools(server, ctx, { guard, run, ok, log, fail: (message) => new ToolError(message), intent, READ, ORGANIZE });
 }
 
 /**

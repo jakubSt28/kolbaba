@@ -59,9 +59,18 @@ export type NewsAction =
   | "notification-settings"
   | "contacts"
   | "files"
-  | "lists";
+  | "lists"
+  | "calendar";
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    id: "2026-11-11-calendar",
+    date: "2026-11-11",
+    icon: "calendar",
+    title: tk("Kolbaba has a calendar"),
+    body: tk("Switch between mail and calendar next to Kolbaba's name. Add the calendars of your mailboxes (Google, Outlook, Seznam, iCloud), follow one by link or import an .ics file, and tick which ones you see. Events you make or change here are saved to the calendar they belong to, guests get an invitation, and a notification reminds you before an event starts. Drag an event to move it, and search to find one. An AI agent can read your calendar and add events once you let it."),
+    action: "calendar",
+  },
   {
     id: "2026-11-10-open-source",
     date: "2026-11-10",

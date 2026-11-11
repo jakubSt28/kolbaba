@@ -499,7 +499,8 @@ function MobileThread({ threadId }: { threadId: string }) {
 
 /* --------------------------------- Drawer --------------------------------- */
 
-function Drawer() {
+/** The sidebar as a drawer from the left; the calendar on a phone uses it too. */
+export function Drawer() {
   const open = useMail((s) => s.drawerOpen);
   const setOpen = useMail((s) => s.setDrawerOpen);
   return (

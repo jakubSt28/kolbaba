@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Kolbaba has a calendar": "Kolbaba má kalendář",
+  "Switch between mail and calendar next to Kolbaba's name. Add the calendars of your mailboxes (Google, Outlook, Seznam, iCloud), follow one by link or import an .ics file, and tick which ones you see. Events you make or change here are saved to the calendar they belong to, guests get an invitation, and a notification reminds you before an event starts. Drag an event to move it, and search to find one. An AI agent can read your calendar and add events once you let it.":
+    "Mezi poštou a kalendářem přepneš vedle názvu Kolbaba. Přidej si kalendáře ke svým schránkám (Google, Outlook, Seznam, iCloud), sleduj kalendář přes odkaz nebo importuj soubor .ics a zaškrtni, které chceš vidět. Události, které tu vytvoříš nebo změníš, se uloží do kalendáře, kam patří, hosté dostanou pozvánku a před začátkem ti přijde oznámení. Událost přesuneš tažením a mezi událostmi můžeš hledat. AI agent umí kalendář číst a přidávat události, jakmile mu to povolíš.",
   "Kolbaba is open source": "Kolbaba je open source",
   "All of Kolbaba's code is now public on GitHub under the AGPL-3.0 licence. You can read how your mail is handled, run Kolbaba on your own server for free, or help make it better. The link is at the foot of Settings → Account.":
     "Celý kód Kolbaby je teď veřejně na GitHubu pod licencí AGPL-3.0. Můžeš si přečíst, jak se s tvou poštou zachází, zdarma si Kolbabu spustit na vlastním serveru, nebo ji pomoct vylepšit. Odkaz najdeš dole v Nastavení → Účet.",

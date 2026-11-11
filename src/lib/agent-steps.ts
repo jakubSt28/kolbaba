@@ -76,5 +76,19 @@ export function describeStep(step: AgentStep, { t: tr, tn, when, folder }: StepF
       return step.allowed ? tr(tk("Let **{who}** into Inbox"), { who: clean(step.who) }) : tr(tk("Turned **{who}** away"), { who: clean(step.who) });
     case "attachment":
       return tr(tk("Opened attachment **{name}**"), { name: clean(step.name) });
+    case "calendars":
+      return tr(tk("Looked up **calendars**"));
+    case "events_listed":
+      return tr(tk("Looked at the calendar from **{from}** to **{to}**"), { from: when(step.from), to: when(step.to) });
+    case "event_created": {
+      const title = clean(step.title) || tr("(No title)");
+      return step.guests
+        ? tn(step.guests, "Added **{title}** to the calendar for {when} and invited {n} guest", "Added **{title}** to the calendar for {when} and invited {n} guests", { title, when: when(step.at) })
+        : tr(tk("Added **{title}** to the calendar for {when}"), { title, when: when(step.at) });
+    }
+    case "event_updated":
+      return tr(tk("Changed **{title}** in the calendar ({when})"), { title: clean(step.title) || tr("(No title)"), when: when(step.at) });
+    case "event_deleted":
+      return tr(tk("Deleted **{title}** from the calendar ({when})"), { title: clean(step.title) || tr("(No title)"), when: when(step.at) });
   }
 }

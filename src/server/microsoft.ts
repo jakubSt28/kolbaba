@@ -73,7 +73,8 @@ interface TokenResponse {
   error_codes?: number[];
 }
 
-async function token(params: Record<string, string>): Promise<TokenResponse> {
+/** One call to Microsoft's token endpoint (a code or a refresh token traded for tokens); calendars use it too. */
+export async function microsoftToken(params: Record<string, string>): Promise<TokenResponse> {
   const res = await fetch(`${AUTHORITY}/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -111,7 +112,7 @@ export interface MicrosoftGrant {
 }
 
 /** What the id_token says about the account. It comes straight from Microsoft's token endpoint over TLS. */
-function claims(idToken: string | undefined): { email?: string; preferred_username?: string; name?: string; tid?: string } {
+export function microsoftClaims(idToken: string | undefined): { email?: string; preferred_username?: string; name?: string; tid?: string } {
   if (!idToken) return {};
   try {
     return JSON.parse(Buffer.from(idToken.split(".")[1], "base64url").toString("utf8"));
@@ -121,7 +122,7 @@ function claims(idToken: string | undefined): { email?: string; preferred_userna
 }
 
 export async function exchangeMicrosoftCode(code: string, codeVerifier: string): Promise<MicrosoftGrant> {
-  const res = await token({
+  const res = await microsoftToken({
     grant_type: "authorization_code",
     code,
     redirect_uri: microsoftRedirectUri(),
@@ -133,7 +134,7 @@ export async function exchangeMicrosoftCode(code: string, codeVerifier: string):
   if (!scope.split(" ").some((s) => s.endsWith("IMAP.AccessAsUser.All"))) {
     throw new MailAuthError(tk("Mail access wasn't allowed. Try again and allow everything Kolbaba asks for."), "scope_denied");
   }
-  const c = claims(res.id_token);
+  const c = microsoftClaims(res.id_token);
   const email = (c.email ?? c.preferred_username ?? "").toLowerCase();
   if (!email.includes("@")) throw new Error("Microsoft id_token has no email address");
   return {
@@ -157,7 +158,7 @@ export interface MicrosoftToken {
 /** A fresh access token for `scopes` (the mailbox by default, or Graph for sending). */
 export async function refreshMicrosoftToken(refreshToken: string, scopes: string[] = OUTLOOK_SCOPES): Promise<MicrosoftToken> {
   try {
-    const res = await token({ grant_type: "refresh_token", refresh_token: refreshToken, scope: scopes.join(" ") });
+    const res = await microsoftToken({ grant_type: "refresh_token", refresh_token: refreshToken, scope: scopes.join(" ") });
     return { accessToken: res.access_token, expiresAt: Date.now() + res.expires_in * 1000, refreshToken: res.refresh_token };
   } catch (err) {
     // invalid_grant: revoked, the password changed, or months unused. interaction_required: new consent or MFA.

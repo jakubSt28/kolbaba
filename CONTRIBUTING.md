@@ -63,11 +63,13 @@ IMAP mailboxes (iCloud, Yahoo, Seznam, your own domain, and Gmail with an app pa
 **Google Cloud**
 
 1. In [console.cloud.google.com](https://console.cloud.google.com), create a project.
-2. In APIs & Services → Library, turn on the **Gmail API** and the **Cloud Pub/Sub API**.
+2. In APIs & Services → Library, turn on the **Gmail API**, the **Google Calendar API** (for the calendar) and the
+   **Cloud Pub/Sub API**.
 3. OAuth consent screen: type *External*, with the scopes `openid`, `email`, `profile` and
    `https://www.googleapis.com/auth/gmail.modify`. Set the publishing status to **In production**: in *Testing*,
    Google expires refresh tokens after 7 days. Until Google verifies the app, it shows an "unverified app" warning
-   and allows at most 100 users.
+   and allows at most 100 users. The calendar asks for its own permission only when someone adds a Google
+   calendar (`calendar.events` and `calendar.calendarlist.readonly`), through the same redirect URI.
 4. Credentials → Create credentials → OAuth client ID → *Web application*, with the redirect URIs
    `<APP_URL>/api/auth/google/callback` and `<APP_URL>/api/accounts/google/callback`
    (for development with `http://localhost:3000`).
@@ -81,7 +83,8 @@ IMAP mailboxes (iCloud, Yahoo, Seznam, your own domain, and Gmail with an app pa
 Register an app in [Microsoft Entra](https://entra.microsoft.com) for "Any Entra ID tenant + personal Microsoft
 accounts", with the redirect URI (Web) `<APP_URL>/api/accounts/microsoft/callback`. Delegated permissions: Graph
 `openid`, `email`, `profile`, `offline_access`, `Mail.Send`, and Office 365 Exchange Online
-`IMAP.AccessAsUser.All` and `SMTP.Send`. Without it, Outlook shows as "coming soon".
+`IMAP.AccessAsUser.All` and `SMTP.Send`; for the calendar, Graph `Calendars.ReadWrite`. Without it, Outlook shows
+as "coming soon".
 
 **Web Push**
 

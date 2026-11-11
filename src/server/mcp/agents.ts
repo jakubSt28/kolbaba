@@ -5,8 +5,8 @@ import type { AgentPermission } from "../db/schema";
 import { HttpError } from "../http-error";
 import { agentDto } from "./activity";
 
-/** Pause/resume, change the access level or the mailboxes it sees. Takes effect on the agent's very next tool call. */
-export async function updateAgent(userId: string, agentId: string, patch: { enabled?: boolean; permission?: AgentPermission; accountIds?: string[] }): Promise<Agent> {
+/** Pause/resume, change the access level, the mailboxes it sees or whether it may use the calendar. Takes effect on the agent's very next tool call. */
+export async function updateAgent(userId: string, agentId: string, patch: { enabled?: boolean; permission?: AgentPermission; accountIds?: string[]; calendar?: boolean }): Promise<Agent> {
   const { accountIds, ...rest } = patch;
   const set: Partial<typeof schema.agents.$inferInsert> = { ...rest };
   if (accountIds) set.accountIds = await ownMailboxes(userId, accountIds);

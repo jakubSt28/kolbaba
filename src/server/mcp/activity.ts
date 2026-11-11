@@ -1,5 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import type { Agent, AgentAction as ClientAction, AgentEvent, AgentSession, AgentStep, Draft } from "@/lib/types";
+import type { EditScope, EventInput as CalendarEventInput } from "@/lib/calendar/types";
+import { createEvent, deleteEvent, updateEvent } from "../calendar/service";
 import { db, schema } from "../db";
 import type { AgentAction, ThreadFolder } from "../db/schema";
 import { HttpError } from "../http-error";
@@ -36,6 +38,9 @@ const GENERIC_TITLES: Record<AgentAction, string> = {
   remind: "Inbox triage",
   screen: "Inbox triage",
   note: "Taking notes",
+  event_create: "Calendar",
+  event_update: "Calendar",
+  event_delete: "Calendar",
 };
 const GENERIC = new Set(Object.values(GENERIC_TITLES));
 
@@ -106,7 +111,11 @@ export type UndoData =
   | { kind: "outbox"; outboxId: string }
   | { kind: "note"; previous: string }
   /** A screener answer: what it was before (null: no decision yet), and the conversations it moved. */
-  | { kind: "screen"; email: string; status: "allowed" | "blocked"; previous: "allowed" | "blocked" | null; threads: string[] };
+  | { kind: "screen"; email: string; status: "allowed" | "blocked"; previous: "allowed" | "blocked" | null; threads: string[] }
+  /** Calendar: an event the agent made (Undo deletes it), changed (Undo puts the old one back) or deleted (Undo makes it again). */
+  | { kind: "event_created"; eventId: string }
+  | { kind: "event_updated"; eventId: string; previous: CalendarEventInput; scope: EditScope }
+  | { kind: "event_deleted"; event: CalendarEventInput };
 
 export async function logEvent(ctx: RunContext, intent: string | null | undefined, e: EventInput) {
   const now = new Date();
@@ -143,6 +152,7 @@ export function agentDto(a: AgentRow): Agent {
     logo: a.logo ?? "",
     permission: a.permission,
     accountIds: a.accountIds,
+    calendar: a.calendar,
     enabled: a.enabled,
     lastActiveAt: (a.lastActiveAt ?? a.createdAt).getTime(),
   };
@@ -168,6 +178,9 @@ const CLIENT_ACTION: Record<AgentAction, ClientAction> = {
   note: "note",
   remind: "snooze",
   screen: "screen",
+  event_create: "schedule",
+  event_update: "schedule",
+  event_delete: "trash",
 };
 
 function eventDto(e: EventRow, pendingOutbox: Set<string>): AgentEvent {
@@ -303,5 +316,14 @@ async function reverse(userId: string, row: EventRow, undo: UndoData): Promise<U
       }
       return;
     }
+    case "event_created":
+      await deleteEvent(userId, undo.eventId, "all");
+      return;
+    case "event_updated":
+      await updateEvent(userId, undo.eventId, undo.previous, undo.scope);
+      return;
+    case "event_deleted":
+      await createEvent(userId, undo.event);
+      return;
   }
 }

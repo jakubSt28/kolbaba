@@ -31,7 +31,7 @@ export interface Invite {
 }
 
 /** Long lines continue on the next line after a space or tab. */
-function unfold(text: string) {
+export function unfold(text: string) {
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n[ \t]/g, "").split("\n").filter(Boolean);
 }
 
@@ -60,7 +60,7 @@ const unescapeText = (s: string) => s.replace(/\\n/gi, "\n").replace(/\\([,;\\])
 const mailto = (s: string) => s.replace(/^mailto:/i, "").trim().toLowerCase();
 
 /** Outlook sends Windows zone names; the common ones, mapped to IANA. */
-const WINDOWS_ZONES: Record<string, string> = {
+export const WINDOWS_ZONES: Record<string, string> = {
   "Central Europe Standard Time": "Europe/Prague",
   "Central European Standard Time": "Europe/Warsaw",
   "W. Europe Standard Time": "Europe/Berlin",
@@ -76,24 +76,38 @@ const WINDOWS_ZONES: Record<string, string> = {
   UTC: "UTC",
 };
 
-/** Offset of `zone` at the given UTC moment, in minutes. */
-function zoneOffset(utc: number, zone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(utc);
+/** One formatter per zone: making one costs far more than using it, and a repeating event asks thousands of times. */
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+
+function zoneFormat(zone: string) {
+  let format = zoneFormats.get(zone);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    // Names come from other people's files, in any spelling: don't keep them all forever.
+    if (zoneFormats.size > 1000) zoneFormats.clear();
+    zoneFormats.set(zone, format);
+  }
+  return format;
+}
+
+/** Offset of `zone` at the given UTC moment, in minutes. Throws a RangeError for a zone name Intl doesn't know. */
+export function zoneOffset(utc: number, zone: string) {
+  const parts = zoneFormat(zone).formatToParts(utc);
   const n = (type: string) => Number(parts.find((p) => p.type === type)?.value);
   return (Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second")) - utc) / 60_000;
 }
 
 /** A wall time in a zone → UTC (two passes settle DST edges). */
-function zonedToUtc(y: number, mo: number, d: number, h: number, mi: number, s: number, zone: string) {
+export function zonedToUtc(y: number, mo: number, d: number, h: number, mi: number, s: number, zone: string) {
   const wall = Date.UTC(y, mo - 1, d, h, mi, s);
   let utc = wall - zoneOffset(wall, zone) * 60_000;
   utc = wall - zoneOffset(utc, zone) * 60_000;
@@ -125,7 +139,7 @@ function parseTime(prop: IcsProp | undefined): { value: string | null; allDay: b
 }
 
 /** Links that join a call, as Teams, Google Meet, Zoom and Webex write them into invitations. */
-const MEETING_LINK = [
+export const MEETING_LINK = [
   /^https:\/\/teams\.microsoft\.com\/(l\/meetup-join|meet)\//i,
   /^https:\/\/teams\.live\.com\/meet\//i,
   /^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i,
@@ -134,7 +148,7 @@ const MEETING_LINK = [
 ];
 
 /** An https address, with Microsoft's Safe Links wrapper taken off. */
-function httpsUrl(raw: string): string | null {
+export function httpsUrl(raw: string): string | null {
   try {
     let url = new URL(raw.replace(/[).,;:!?\]>'"]+$/, ""));
     const wrapped = /\.safelinks\.protection\.outlook\.com$/i.test(url.hostname) && url.searchParams.get("url");
@@ -145,31 +159,55 @@ function httpsUrl(raw: string): string | null {
   }
 }
 
+/** The values of an event that can carry the link to its call, as plain text (already unescaped). */
+export interface JoinUrlSource {
+  /** X-MICROSOFT-SKYPETEAMSMEETINGURL */
+  teams?: string;
+  /** X-GOOGLE-CONFERENCE */
+  google?: string;
+  /** Every CONFERENCE value (RFC 7986). */
+  conferences?: string[];
+  location?: string;
+  url?: string;
+  description?: string;
+}
+
 /**
  * Where to join the call: the property Teams or Google Calendar sets for it, a CONFERENCE link
  * (RFC 7986), a location that is just a link, or else the first meeting link in the text.
  */
-function findJoinUrl(props: IcsProp[]): string | null {
-  const value = (name: string) => unescapeText(props.find((p) => p.name === name)?.value ?? "").trim();
-  for (const name of ["X-MICROSOFT-SKYPETEAMSMEETINGURL", "X-GOOGLE-CONFERENCE"]) {
-    const url = httpsUrl(value(name));
+export function joinUrlFrom(source: JoinUrlSource): string | null {
+  for (const own of [source.teams, source.google]) {
+    const url = httpsUrl((own ?? "").trim());
     if (url) return url;
   }
-  for (const p of props.filter((p) => p.name === "CONFERENCE")) {
-    const url = httpsUrl(p.value.trim());
+  for (const conference of source.conferences ?? []) {
+    const url = httpsUrl(conference.trim());
     if (url) return url;
   }
-  const location = value("LOCATION");
+  const location = (source.location ?? "").trim();
   // A place on a map isn't a call.
   const own = /^https:\/\/\S+$/i.test(location) && httpsUrl(location);
   if (own && !/^https:\/\/(([\w-]+\.)*(maps?|mapy)\.|[^/]*goo\.gl\/|[^/]+\/maps\b)/i.test(own)) return own;
-  for (const text of [location, value("URL"), value("DESCRIPTION")]) {
+  for (const text of [location, (source.url ?? "").trim(), (source.description ?? "").trim()]) {
     for (const raw of text.match(/https:\/\/[^\s<>"]+/gi) ?? []) {
       const url = httpsUrl(raw);
       if (url && MEETING_LINK.some((re) => re.test(url))) return url;
     }
   }
   return null;
+}
+
+function findJoinUrl(props: IcsProp[]): string | null {
+  const value = (name: string) => unescapeText(props.find((p) => p.name === name)?.value ?? "");
+  return joinUrlFrom({
+    teams: value("X-MICROSOFT-SKYPETEAMSMEETINGURL"),
+    google: value("X-GOOGLE-CONFERENCE"),
+    conferences: props.filter((p) => p.name === "CONFERENCE").map((p) => p.value),
+    location: value("LOCATION"),
+    url: value("URL"),
+    description: value("DESCRIPTION"),
+  });
 }
 
 export function parseInvite(text: string): Invite | null {
@@ -224,7 +262,7 @@ const escapeText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").
 const quoteParam = (s: string) => `"${s.replace(/"/g, "'")}"`;
 
 /** Lines longer than 75 octets fold onto the next line (RFC 5545 §3.1). */
-function fold(line: string) {
+export function fold(line: string) {
   const out: string[] = [];
   let rest = line;
   while (Buffer.byteLength(rest) > 75) {

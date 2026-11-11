@@ -148,6 +148,18 @@ describe("authorization request", () => {
     // Only what was ticked, and only for this agent.
     expect(agent.accountIds).toEqual([hidden.id]);
     expect(agent.accountIds).not.toContain(shared.id);
+    // The calendar wasn't on the form: it stays off.
+    expect(agent.calendar).toBe(false);
+
+    const agentNow = async () => (await db().select().from(schema.agents).where(eq(schema.agents.clientId, clientId)))[0];
+    await applyConsent(user.id, form({ decision: "allow", consent: token, calendar_shown: "1", calendar: "1" }));
+    expect((await agentNow()).calendar).toBe(true);
+    // Connecting again without the question (no calendar here any more) keeps the answer.
+    await applyConsent(user.id, form({ decision: "allow", consent: token }));
+    expect((await agentNow()).calendar).toBe(true);
+    // Asked and left off.
+    await applyConsent(user.id, form({ decision: "allow", consent: token, calendar_shown: "1" }));
+    expect((await agentNow()).calendar).toBe(false);
   });
 });
 

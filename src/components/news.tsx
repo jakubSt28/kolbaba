@@ -36,6 +36,7 @@ import { Dialog } from "radix-ui";
 import { useEffect, useMemo } from "react";
 import { intlLocale, t } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
+import { useCalendar } from "@/lib/calendar/store";
 import { useMail } from "@/lib/store";
 import { LATEST_NOTE, openTips, RELEASE_NOTES, TIP_EVERY_MS, TIPS, type NewsAction, type NewsIcon, type ReleaseNote, type TipContext } from "@/lib/whats-new";
 import { buildScene } from "@/lib/postcard";
@@ -62,6 +63,7 @@ const ACTIONS: Record<NewsAction, () => void> = {
   contacts: () => useMail.getState().setFolder("contacts"),
   files: () => useMail.getState().setFolder("files"),
   lists: () => useMail.getState().setFolder("lists"),
+  calendar: () => useCalendar.getState().setMode("calendar"),
 };
 
 const run = (action: NewsAction) => {

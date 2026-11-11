@@ -32,6 +32,11 @@ export interface AdminUser {
   plus: PlusState;
   /** Cards of the last 30 days, and how many of them the user hid as not belonging there. */
   cards: { month: number; hidden: number };
+  /**
+   * The calendar: when it was first opened (null: never), on how many of the last 30 days and when
+   * last, how many calendars are connected and from where, and events made here in the last 30 days.
+   */
+  calendar: { firstOpenedAt: Date | null; lastOpenedAt: Date | null; days: number; opens: number; calendars: number; kinds: string[]; eventsMade: number };
 }
 
 export interface AdminOverview {
@@ -47,6 +52,8 @@ export interface AdminOverview {
   plus: { paying: number; gifts: number; trials: number };
   /** Cards hidden as not belonging there, of all cards of the last 30 days: the measure of how good smart categories are. */
   cards: { month: number; hidden: number };
+  /** The calendar: who ever opened it, who opened it in the last 7 and 30 days, who has a calendar connected. */
+  calendar: { opened: number; week: number; month: number; connected: number };
   /** Who asked for a copy on their own server, newest first. */
   waitlist: { id: string; email: string; runsOn: "vps" | "home" | "unsure"; note: string; lang: string; ref: string | null; createdAt: Date }[];
 }
@@ -55,7 +62,7 @@ const DAY = 24 * 3600 * 1000;
 
 export async function adminOverview(): Promise<AdminOverview> {
   const since90 = new Date(Date.now() - 90 * DAY);
-  const [users, mailboxes, scores, feedback, aiCosts, cardCounts, waitlist] = await Promise.all([
+  const [users, mailboxes, scores, feedback, aiCosts, cardCounts, waitlist, calendarUse, calendarCounts] = await Promise.all([
     db()
       .select({
         id: schema.users.id,
@@ -124,7 +131,29 @@ export async function adminOverview(): Promise<AdminOverview> {
       .where(gt(schema.insights.createdAt, new Date(Date.now() - 30 * DAY)))
       .groupBy(schema.insights.userId),
     db().select().from(schema.waitlist).orderBy(desc(schema.waitlist.createdAt)),
+    // Opening the calendar and making an event are counted like any feature (src/lib/usage.ts), per day.
+    db().execute<{ user_id: string; days: number; opens: number; last_day: string | null; week: number; events_made: number }>(sql`
+      select user_id,
+        count(*) filter (where feature = 'calOpen')::int as days,
+        coalesce(sum(count) filter (where feature = 'calOpen'), 0)::int as opens,
+        max(day) filter (where feature = 'calOpen')::text as last_day,
+        count(*) filter (where feature = 'calOpen' and day > current_date - 7)::int as week,
+        coalesce(sum(count) filter (where feature = 'calEventNew'), 0)::int as events_made
+      from feature_usage
+      where day > current_date - 30 and feature in ('calOpen', 'calEventNew')
+      group by user_id`),
+    db()
+      .select({
+        userId: schema.calendarSources.userId,
+        calendars: sql<number>`count(${schema.calendars.id})::int`,
+        kinds: sql<string[]>`array_agg(distinct ${schema.calendarSources.kind})`,
+      })
+      .from(schema.calendarSources)
+      .leftJoin(schema.calendars, eq(schema.calendars.sourceId, schema.calendarSources.id))
+      .groupBy(schema.calendarSources.userId),
   ]);
+  const useByUser = new Map(calendarUse.map((u) => [u.user_id, u]));
+  const calendarsByUser = new Map(calendarCounts.map((c) => [c.userId, c]));
   const cardsByUser = new Map(cardCounts.map((c) => [c.userId, { month: c.month, hidden: c.hidden }]));
   const usd = (micros: number | string) => Number(micros) / 1e6;
   const aiByUser = new Map(aiCosts.map((c) => [c.userId, { today: usd(c.today), month: usd(c.month) }]));
@@ -149,6 +178,15 @@ export async function adminOverview(): Promise<AdminOverview> {
     ai: aiByUser.get(u.id) ?? { today: 0, month: 0 },
     plus: plusState(u),
     cards: cardsByUser.get(u.id) ?? { month: 0, hidden: 0 },
+    calendar: {
+      firstOpenedAt: u.settings.calendar?.seenAt ? new Date(u.settings.calendar.seenAt) : null,
+      lastOpenedAt: useByUser.get(u.id)?.last_day ? new Date(`${useByUser.get(u.id)!.last_day}T12:00:00Z`) : null,
+      days: useByUser.get(u.id)?.days ?? 0,
+      opens: useByUser.get(u.id)?.opens ?? 0,
+      calendars: calendarsByUser.get(u.id)?.calendars ?? 0,
+      kinds: calendarsByUser.get(u.id)?.kinds ?? [],
+      eventsMade: useByUser.get(u.id)?.events_made ?? 0,
+    },
   }));
 
   const answers = scores.map((s) => s.score as number);
@@ -168,6 +206,12 @@ export async function adminOverview(): Promise<AdminOverview> {
       trials: list.filter((u) => u.plus.level === "trial").length,
     },
     cards: { month: list.reduce((sum, u) => sum + u.cards.month, 0), hidden: list.reduce((sum, u) => sum + u.cards.hidden, 0) },
+    calendar: {
+      opened: list.filter((u) => u.calendar.firstOpenedAt).length,
+      week: calendarUse.filter((u) => u.week > 0).length,
+      month: calendarUse.filter((u) => u.days > 0).length,
+      connected: list.filter((u) => u.calendar.calendars > 0).length,
+    },
     waitlist,
   };
 }

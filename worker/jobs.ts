@@ -1,5 +1,6 @@
 import { and, eq, gt, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { translate } from "@/lib/i18n";
+import { refreshForReminders, sendEventReminders } from "@/server/calendar/reminders";
 import { db, schema } from "@/server/db";
 import { processInsights } from "@/server/insights/run";
 import { clearOrphanAttachments } from "@/server/mail/outgoing-attachments";
@@ -143,6 +144,10 @@ export function startJobs(supervisor: Supervisor) {
       if (insightsIdle > 0) return void insightsIdle--;
       insightsIdle = (await processInsights()) ? 0 : 5;
     }),
+    // Calendar: a notification shortly before an event starts, and the coming day re-read from the
+    // providers every ten minutes so events made elsewhere remind too (src/server/calendar/reminders.ts).
+    every(30_000, "event-reminders", sendEventReminders),
+    every(10 * 60_000, "calendar-refresh", refreshForReminders),
     // The address book takes in whoever the user wrote to (src/server/contacts.ts).
     every(10 * 60_000, "contacts", scanAllContacts),
     every(6 * 3600_000, "cleanup", cleanUp),
@@ -185,6 +190,8 @@ export async function cleanUp() {
     sql`delete from ${schema.feedback} where created_at < now() - interval '3 years'`,
     // Waitlist for one's own server: at most 3 years, as the privacy policy promises.
     sql`delete from ${schema.waitlist} where created_at < now() - interval '3 years'`,
+    // Calendar: the copy of long-past events (the calendars themselves keep them); they come back when looked at.
+    sql`delete from ${schema.calendarEvents} where end_at < now() - interval '400 days'`,
     // AI costs per user and day: a year, like feature usage. Today's caps only read today.
     sql`delete from ${schema.aiUsage} where day < current_date - 365`,
   ]) {
