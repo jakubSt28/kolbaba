@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEvent, buildReply, parseInvite } from "./ics";
+import { buildEvent, buildReply, parseInvite, zoneOffset } from "./ics";
 
 const GOOGLE = [
   "BEGIN:VCALENDAR",
@@ -164,5 +164,13 @@ describe("buildEvent", () => {
     const ics = buildEvent(parseInvite(["BEGIN:VEVENT", "UID:a", "DTSTART;VALUE=DATE:20261224", "DTEND;VALUE=DATE:20261225", "END:VEVENT"].join("\n"))!)!;
     expect(ics).toContain("DTSTART;VALUE=DATE:20261224");
     expect(ics).toContain("DTEND;VALUE=DATE:20261225");
+  });
+});
+
+describe("zoneOffset", () => {
+  it("is a whole number of minutes for an instant with milliseconds", () => {
+    expect(zoneOffset(Date.UTC(2026, 10, 11, 22, 10, 49, 981), "Europe/Prague")).toBe(60);
+    expect(zoneOffset(Date.UTC(2026, 6, 1, 12, 0, 0, 1), "Europe/Prague")).toBe(120);
+    expect(zoneOffset(Date.UTC(2026, 6, 1, 12, 0, 0, 999), "America/St_Johns")).toBe(-150);
   });
 });

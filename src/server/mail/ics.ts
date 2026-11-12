@@ -101,9 +101,11 @@ function zoneFormat(zone: string) {
 
 /** Offset of `zone` at the given UTC moment, in minutes. Throws a RangeError for a zone name Intl doesn't know. */
 export function zoneOffset(utc: number, zone: string) {
-  const parts = zoneFormat(zone).formatToParts(utc);
+  // Intl shows whole seconds: compare against the same, or "now" comes out as +00:59.99… instead of +01:00.
+  const second = Math.floor(utc / 1000) * 1000;
+  const parts = zoneFormat(zone).formatToParts(second);
   const n = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  return (Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second")) - utc) / 60_000;
+  return (Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second")) - second) / 60_000;
 }
 
 /** A wall time in a zone → UTC (two passes settle DST edges). */
