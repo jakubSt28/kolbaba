@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Kolbaba has tasks": "Kolbaba má úkoly",
+  "Next to mail and calendar there's now a to-do list. Add a task in one line and press Enter: “tomorrow”, “9:00” or “!high” at its end set its day, time and priority. Today, Next 7 days and the Inbox show what's left to do, with what's late in red. Give a task a day and a priority, and write a description with headings, lists and to-dos. Drag tasks to another day, onto Today or into Trash.":
+    "Vedle pošty a kalendáře je teď i seznam úkolů. Úkol napíšeš na jeden řádek a stiskneš Enter: „zítra“, „9:00“ nebo „!vysoká“ na konci mu nastaví datum, čas a prioritu. Dnes, Příštích 7 dní a Příchozí ukážou, co zbývá udělat, a co je po termínu, svítí červeně. Úkolu dáš datum a prioritu a napíšeš mu popis s nadpisy, seznamy a zaškrtávacími body. Úkoly přetáhneš na jiný den, na Dnes nebo do koše.",
   "Kolbaba has a calendar": "Kolbaba má kalendář",
   "Switch between mail and calendar next to Kolbaba's name. Add the calendars of your mailboxes (Google, Outlook, Seznam, iCloud), follow one by link or import an .ics file, and tick which ones you see. Events you make or change here are saved to the calendar they belong to, guests get an invitation, and a notification reminds you before an event starts. Drag an event to move it, and search to find one. An AI agent can read your calendar and add events once you let it.":
     "Mezi poštou a kalendářem přepneš vedle názvu Kolbaba. Přidej si kalendáře ke svým schránkám (Google, Outlook, Seznam, iCloud), sleduj kalendář přes odkaz nebo importuj soubor .ics a zaškrtni, které chceš vidět. Události, které tu vytvoříš nebo změníš, se uloží do kalendáře, kam patří, hosté dostanou pozvánku a před začátkem ti přijde oznámení. Událost přesuneš tažením a mezi událostmi můžeš hledat. AI agent umí kalendář číst a přidávat události, jakmile mu to povolíš.",

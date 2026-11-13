@@ -73,6 +73,17 @@ const GROUPS: { title: string; keys: [string[], string][] }[] = [
       [["R"], tk("Refresh")],
     ],
   },
+  // Keep in step with useTasksShortcuts in src/components/tasks/tasks-app.tsx.
+  {
+    title: tk("Tasks"),
+    keys: [
+      [["N"], tk("New task")],
+      [["J", "K"], tk("Next / previous task")],
+      [["X"], tk("Tick off or back")],
+      [["⌫"], tk("Move to Trash")],
+      [["Esc"], tk("Close the task")],
+    ],
+  },
 ];
 
 export function ShortcutsHost() {

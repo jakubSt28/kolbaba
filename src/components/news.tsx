@@ -7,6 +7,7 @@ import {
   BookUser,
   CalendarClock,
   CalendarDays,
+  CircleCheckBig,
   Check,
   Clock,
   Command,
@@ -64,6 +65,7 @@ const ACTIONS: Record<NewsAction, () => void> = {
   files: () => useMail.getState().setFolder("files"),
   lists: () => useMail.getState().setFolder("lists"),
   calendar: () => useCalendar.getState().setMode("calendar"),
+  tasks: () => useCalendar.getState().setMode("tasks"),
 };
 
 const run = (action: NewsAction) => {
@@ -114,6 +116,7 @@ const ICONS: Record<Exclude<NewsIcon, "postmark" | "postcard" | "stamps">, [Luci
   search: [Search, 210],
   mailboxes: [Inbox, 245],
   calendar: [CalendarDays, 145],
+  tasks: [CircleCheckBig, 160],
 };
 
 /** A note's or a tip's picture: a coloured tile, or for Kolbaba's own things a little drawing. */

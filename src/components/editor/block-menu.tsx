@@ -8,7 +8,7 @@ import { t } from "@/lib/i18n";
 import { keepTypingMenu } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 import { Tooltip, menuContentClass } from "../ui";
-import { SLASH_ITEMS } from "./slash-command";
+import { blocksFor } from "./slash-command";
 
 /** Put the cursor in an empty paragraph where the new block should go: reuse an empty line, otherwise add one below. */
 function prepareTarget(editor: Editor, blockStart?: number) {
@@ -73,7 +73,7 @@ export function BlockMenu({
           className={cn(menuContentClass, "max-h-[min(360px,60vh)] w-[264px] overflow-y-auto")}
         >
           <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-ink-3">{t("Insert block")}</div>
-          {SLASH_ITEMS.map((item) => (
+          {blocksFor(editor).map((item) => (
             <DropdownMenu.Item
               key={item.title}
               onSelect={() => {

@@ -16,6 +16,7 @@ import { quiet } from "./quiet";
 import { safety } from "./safety";
 import { reader } from "./reader";
 import { server } from "./server";
+import { tasks } from "./tasks";
 import { triage } from "./triage";
 
 /** Czech, split by area of the app so it stays easy to find (the keys are the English texts). */
@@ -37,5 +38,6 @@ export const CS: Dictionary = {
   ...safety,
   ...reader,
   ...server,
+  ...tasks,
   ...triage,
 };

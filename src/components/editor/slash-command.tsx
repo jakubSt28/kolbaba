@@ -33,7 +33,12 @@ export interface SlashItem {
   run: (editor: Editor, range: Range) => void;
   /** A saved snippet: shown under "Snippets", its name and text as they are (not translated). */
   snippet?: string;
+  /** Offered only in an editor that has this extension. */
+  needs?: string;
 }
+
+/** The blocks this editor can hold (a task's description has no pictures). */
+export const blocksFor = (editor: Editor) => SLASH_ITEMS.filter((i) => !i.needs || editor.extensionManager.extensions.some((e) => e.name === i.needs));
 
 export const SLASH_ITEMS: SlashItem[] = [
   { title: tk("Text"), hint: tk("Plain paragraph"), keywords: "paragraph text p odstavec", icon: Type, run: (e, r) => e.chain().focus().deleteRange(r).setParagraph().run() },
@@ -51,6 +56,7 @@ export const SLASH_ITEMS: SlashItem[] = [
     hint: tk("Upload from your device"),
     keywords: "image picture photo obrazek fotka",
     icon: ImageIcon,
+    needs: "image",
     run: (e, r) => {
       e.chain().focus().deleteRange(r).run();
       const input = document.createElement("input");
@@ -72,9 +78,12 @@ export const SLASH_ITEMS: SlashItem[] = [
 /** Lowercase without diacritics, so "obrazek" finds "Obrázek". */
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 
-/** The user's snippets first (they're what "/" is mostly for once there are some), then blocks. */
-function filterItems(query: string) {
+/** The user's snippets first (they're what "/" is mostly for once there are some), then blocks. `blocksOnly`: no snippets (a task's description). */
+function filterItems(query: string, editor: Editor, blocksOnly: boolean) {
   const q = fold(query.trim());
+  // English title and keywords always match; the shown (translated) title too.
+  const blocks = blocksFor(editor).filter((i) => !q || fold(`${i.title} ${t(i.title)} ${i.keywords}`).includes(q));
+  if (blocksOnly) return blocks;
   const snippets: SlashItem[] = useMail
     .getState()
     .snippets.map((s) => ({
@@ -106,8 +115,6 @@ function filterItems(query: string) {
           },
         ]
       : [];
-  // English title and keywords always match; the shown (translated) title too.
-  const blocks = q ? SLASH_ITEMS.filter((i) => fold(`${i.title} ${t(i.title)} ${i.keywords}`).includes(q)) : SLASH_ITEMS;
   return [...snippets.slice(0, 8), ...blocks, ...intro];
 }
 
@@ -210,8 +217,11 @@ const SlashMenu = forwardRef<MenuHandle, MenuProps>(function SlashMenu({ items, 
   );
 });
 
-export const SlashCommand = Extension.create({
+export const SlashCommand = Extension.create<{ blocksOnly: boolean }>({
   name: "slashCommand",
+  addOptions() {
+    return { blocksOnly: false };
+  },
   addProseMirrorPlugins() {
     return [
       Suggestion<SlashItem, SlashItem>({
@@ -219,7 +229,7 @@ export const SlashCommand = Extension.create({
         char: "/",
         startOfLine: false,
         allowSpaces: false,
-        items: ({ query }) => filterItems(query),
+        items: ({ query, editor }) => filterItems(query, editor, this.options.blocksOnly),
         command: ({ editor, range, props }) => props.run(editor, range),
         render: () => {
           let renderer: ReactRenderer<MenuHandle, MenuProps> | null = null;

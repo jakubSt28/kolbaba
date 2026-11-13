@@ -45,7 +45,8 @@ export type NewsIcon =
   | "newsletters"
   | "search"
   | "mailboxes"
-  | "calendar";
+  | "calendar"
+  | "tasks";
 
 export type NewsAction =
   | "folders"
@@ -60,9 +61,18 @@ export type NewsAction =
   | "contacts"
   | "files"
   | "lists"
-  | "calendar";
+  | "calendar"
+  | "tasks";
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    id: "2026-11-13-tasks",
+    date: "2026-11-13",
+    icon: "tasks",
+    title: tk("Kolbaba has tasks"),
+    body: tk("Next to mail and calendar there's now a to-do list. Add a task in one line and press Enter: “tomorrow”, “9:00” or “!high” at its end set its day, time and priority. Today, Next 7 days and the Inbox show what's left to do, with what's late in red. Give a task a day and a priority, and write a description with headings, lists and to-dos. Drag tasks to another day, onto Today or into Trash."),
+    action: "tasks",
+  },
   {
     id: "2026-11-11-calendar",
     date: "2026-11-11",

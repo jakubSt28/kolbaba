@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CalendarPlus, Check, ChevronLeft, ChevronRight, Ellipsis, Link2, Mail, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
+import { CalendarDays, CalendarPlus, Check, CircleCheckBig, ChevronLeft, ChevronRight, Ellipsis, Link2, Mail, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { motion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useMemo, useState } from "react";
@@ -15,21 +15,22 @@ import { confirmAction } from "../confirm";
 import { FOLDER_HUES } from "../folders";
 import { hueStyle, MailboxBadge, menuContentClass, menuItemClass, spring, Tooltip } from "../ui";
 
-/* -------------------------------- Mail | Calendar -------------------------------- */
+/* ---------------------------- Mail | Calendar | Tasks ---------------------------- */
 
 const MODES: { id: AppMode; icon: typeof Mail }[] = [
   { id: "mail", icon: Mail },
   { id: "calendar", icon: CalendarDays },
+  { id: "tasks", icon: CircleCheckBig },
 ];
 
-/** The switch next to the name: the mail or the calendar. They're two apps side by side, not a folder of each other. */
+/** The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. */
 export function ModeSwitch({ collapsed, onSwitch }: { collapsed?: boolean; onSwitch?: () => void }) {
   const mode = useCalendar((s) => s.mode);
   const setMode = useCalendar((s) => s.setMode);
   return (
-    <div role="tablist" aria-label={t("Mail or calendar")} className={cn("relative flex shrink-0 rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
+    <div role="tablist" aria-label={t("Mail, calendar or tasks")} className={cn("relative flex shrink-0 rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
       {MODES.map((m) => {
-        const label = m.id === "mail" ? t("Mail@@mode") : t("Calendar");
+        const label = m.id === "mail" ? t("Mail@@mode") : m.id === "calendar" ? t("Calendar") : t("Tasks");
         return (
           <Tooltip key={m.id} label={label} side={collapsed ? "right" : "bottom"}>
             <button

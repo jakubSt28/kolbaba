@@ -32,7 +32,9 @@ import { Toaster } from "./toaster";
 import { WelcomeHost } from "./welcome";
 import { ImagesExplainerHost } from "./images-explainer";
 import { openCalendarLink, restoreMode, useCalendar } from "@/lib/calendar/store";
+import { useTasks } from "@/lib/tasks/store";
 import { CalendarHosts, CalendarMain, MobileCalendar } from "./calendar/calendar-app";
+import { MobileTasks, TasksDetailsPane, TasksMain } from "./tasks/tasks-app";
 
 /** No click, key, wheel, touch or mouse movement for this long: nobody's looking, so the minute's refresh rests. */
 const IDLE_AFTER_MS = 5 * 60_000;
@@ -52,7 +54,7 @@ function useMedia(query: string) {
 
 /**
  * Links into the app: notifications open `/?thread=…`, `/?activity` (an agent's action), `/?settings` or
- * `/?calendar=2026-11-12&event=…` (a reminder),
+ * `/?calendar=2026-11-12&event=…` (a reminder), `/?tasks`,
  * the Gmail connect flow comes back with `?connected=…` or `?connect_error=…`, and a new version loads
  * where you were with `?mailbox=…&folder=…&thread=…` (src/lib/app-update.ts). Handle them once, then
  * clean the address bar.
@@ -88,6 +90,10 @@ async function handleDeepLink(url: URL) {
   // "?settings=agents" opens that section (the website's recipes link there).
   if (p.has("settings")) useMail.getState().setSettingsOpen(true, p.get("settings") || undefined);
   // The calendar: a reminder's day and event, or the way back from Google's or Microsoft's permission page.
+  if (p.has("tasks")) {
+    closeOverlays();
+    useCalendar.getState().setMode("tasks");
+  }
   if (p.has("calendar")) {
     closeOverlays();
     openCalendarLink(p.get("calendar"), p.get("event"));
@@ -125,9 +131,12 @@ export function MailApp() {
   // Not a re-mount: that would replay every opening animation and reset scroll, Settings included.
   const locale = resolveLocale(useMail((s) => s.language));
   if (getLocale() !== locale) setLocale(locale);
-  // Mail or calendar: the other one stays as it was, out of sight, for the way back.
-  const calendar = useCalendar((s) => s.mode === "calendar");
-  useShortcuts(!isMobile && !calendar);
+  // Mail, calendar or tasks: the others stay as they were, out of sight, for the way back.
+  const mode = useCalendar((s) => s.mode);
+  const calendar = mode === "calendar";
+  const tasks = mode === "tasks";
+  const away = mode !== "mail";
+  useShortcuts(!isMobile && !away);
 
   useEffect(() => {
     document.documentElement.dataset.accent = accent;
@@ -250,7 +259,7 @@ export function MailApp() {
 
   useEffect(() => {
     // Handy for poking at the prototype from devtools.
-    if (process.env.NODE_ENV !== "production") Object.assign(window, { __mail: useMail, __calendar: useCalendar });
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __mail: useMail, __calendar: useCalendar, __tasks: useTasks });
   }, []);
 
   return (
@@ -259,11 +268,12 @@ export function MailApp() {
         <>
           {isMobile ? (
             <>
-              {/* The mail stays mounted under the calendar: its place in the list is there on the way back. */}
-              <div className={calendar ? "hidden" : "contents"}>
+              {/* The mail stays mounted under the calendar and the tasks: its place in the list is there on the way back. */}
+              <div className={away ? "hidden" : "contents"}>
                 <MobileShell />
               </div>
               {calendar && <MobileCalendar />}
+              {tasks && <MobileTasks />}
               <Toaster className="fixed bottom-[calc(84px+var(--safe-bottom))]" />
             </>
           ) : (
@@ -274,20 +284,32 @@ export function MailApp() {
                     <Sidebar collapsed={narrow} />
                   </div>
                 </aside>
-                {/* The mail's two panes stay mounted (hidden) while the calendar is open: the open email and the list keep their place. */}
-                <section className={cn("panel w-[360px] shrink-0 overflow-hidden rounded-[18px] lg:w-[390px]", calendar && "hidden")}>
+                {/* The mail's two panes stay mounted (hidden) while the calendar or the tasks are open: the open email and the list keep their place. */}
+                <section className={cn("panel w-[360px] shrink-0 overflow-hidden rounded-[18px] lg:w-[390px]", away && "hidden")}>
                   <MessageList />
                 </section>
-                <main className={cn("panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]", calendar && "hidden")}>
+                <main className={cn("panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]", away && "hidden")}>
                   <Reader />
                   {/* Centred in the reader so toasts sit right above the floating action bar. */}
-                  {!calendar && <Toaster className="absolute bottom-[84px]" />}
+                  {!away && <Toaster className="absolute bottom-[84px]" />}
                 </main>
                 {calendar && (
                   <main className="panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]">
                     <CalendarMain />
                     <Toaster className="absolute bottom-6" />
                   </main>
+                )}
+                {/* Tasks: the list wide, the open task beside it. */}
+                {tasks && (
+                  <>
+                    <section className="panel relative min-w-0 flex-1 overflow-hidden rounded-[18px]">
+                      <TasksMain />
+                      <Toaster className="absolute bottom-6" />
+                    </section>
+                    <main className="panel relative w-[380px] shrink-0 overflow-hidden rounded-[18px] xl:w-[460px]">
+                      <TasksDetailsPane />
+                    </main>
+                  </>
                 )}
               </div>
               <CommandPalette />

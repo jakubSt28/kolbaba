@@ -6,6 +6,7 @@ import {
   boolean,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -15,6 +16,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { Priority } from "@/lib/tasks/types";
 import type { AttendeeStatus, CalendarSettings, CalendarSourceKind, EventAttendee } from "@/lib/calendar/types";
 import type { AgentStep, AwayReply, BadgeMode, HistoryKind, Insight, InsightCategory, LegacyAwayReply, NotifyMode, QuietHours, RuleAction, ThreadSummary } from "@/lib/types";
 import type { Sealed } from "../crypto";
@@ -1368,4 +1370,34 @@ export const agentEvents = pgTable(
     undone: boolean().notNull().default(false),
   },
   (t) => [index().on(t.userId, t.at)],
+);
+
+/**
+ * Tasks: the user's own to-do list (src/server/tasks.ts). Nothing behind it at a provider. A task
+ * in Trash keeps `deletedAt` and is gone for good after 30 days.
+ */
+export const tasks = pgTable(
+  "tasks",
+  {
+    /** Picked by the app (tsk_…), so a new task can be changed before the server has it. */
+    id: text().primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    /** Editor HTML, like a snippet's. */
+    notes: text().notNull().default(""),
+    /** 0 none, 1 low, 2 medium, 3 high. */
+    priority: integer().$type<Priority>().notNull().default(0),
+    /** The day it's due in the user's own days, and a time on it ("HH:MM"). */
+    due: date({ mode: "string" }),
+    time: text(),
+    /** Order by hand, smallest first. */
+    sortOrder: doublePrecision().notNull().default(0),
+    completedAt: ts(),
+    deletedAt: ts(),
+    createdAt: createdAt(),
+    updatedAt: ts().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId, t.completedAt)],
 );

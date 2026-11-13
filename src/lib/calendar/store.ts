@@ -27,7 +27,8 @@ import {
  * copy first (at once), then again once the providers have been asked.
  */
 
-export type AppMode = "mail" | "calendar";
+/** Three apps under one name: the mail, the calendar and the tasks (src/lib/tasks/store.ts). */
+export type AppMode = "mail" | "calendar" | "tasks";
 
 /** The pages of the "Add calendar" window. */
 export type AddPage = "menu" | "caldav" | "feed" | "import" | "local";
@@ -263,10 +264,11 @@ export const useCalendar = create<CalendarState>()((set, get) => {
       if (get().mode === mode) return;
       set({ mode, openEvent: null, editor: null, search: null });
       write("session", MODE_KEY, mode);
-      if (mode !== "calendar") return;
-      track("calOpen");
+      if (mode === "mail") return;
       // Mail's overlays step aside; the open conversation stays where it was for the way back.
       useMail.setState({ paletteOpen: false, sidebarEditing: false });
+      if (mode === "tasks") return track("tasksOpen");
+      track("calOpen");
       // Every time: a mailbox added since last time is offered its calendar, and the events are fresh.
       const first = !get().ready;
       void get()
@@ -642,9 +644,10 @@ export function visibleEvents(events: CalEvent[], calendars: Calendar[]) {
   return events.filter((e) => shown.has(e.calendarId));
 }
 
-/** The app comes back in the calendar after a reload in the same window (a fresh launch opens the mail). */
+/** The app comes back in the calendar or the tasks after a reload in the same window (a fresh launch opens the mail). */
 export function restoreMode() {
-  if (read("session", MODE_KEY) === "calendar") useCalendar.getState().setMode("calendar");
+  const mode = read("session", MODE_KEY);
+  if (mode === "calendar" || mode === "tasks") useCalendar.getState().setMode(mode);
 }
 
 /** A link into the calendar: `/?calendar`, `/?calendar=2026-11-12`, with `&event=…` to open one. */
@@ -658,7 +661,7 @@ export function openCalendarLink(day: string | null, eventId: string | null) {
 // Anything that opens mail (a notification, a shortcut, the command palette) brings the mail back.
 if (typeof window !== "undefined") {
   useMail.subscribe((s, prev) => {
-    if (useCalendar.getState().mode !== "calendar") return;
+    if (useCalendar.getState().mode === "mail") return;
     if ((s.activeTabId && s.activeTabId !== prev.activeTabId) || s.folder !== prev.folder) useCalendar.getState().setMode("mail");
   });
 }

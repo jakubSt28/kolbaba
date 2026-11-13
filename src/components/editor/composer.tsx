@@ -785,7 +785,8 @@ async function saveSelectionAsSnippet(editor: Editor) {
   }
 }
 
-function FormatBubble({ editor }: { editor: Editor }) {
+/** Bold, italic, a link… over selected text; `snippets: false` where there are none to save (a task's description). */
+export function FormatBubble({ editor, snippets = true }: { editor: Editor; snippets?: boolean }) {
   const btn = (active: boolean) =>
     cn("flex size-7 items-center justify-center rounded-md transition-colors", active ? "bg-accent text-on-accent" : "text-ink-2 hover:bg-hover hover:text-ink");
   return (
@@ -823,10 +824,14 @@ function FormatBubble({ editor }: { editor: Editor }) {
       >
         <LinkIcon size={14} />
       </button>
-      <span className="mx-0.5 h-4 w-px bg-line" />
-      <button onMouseDown={(e) => e.preventDefault()} onClick={() => void saveSelectionAsSnippet(editor)} className={btn(false)} aria-label={t("Save as snippet")} title={t("Save as snippet")}>
-        <TextQuote size={14} />
-      </button>
+      {snippets && (
+        <>
+          <span className="mx-0.5 h-4 w-px bg-line" />
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => void saveSelectionAsSnippet(editor)} className={btn(false)} aria-label={t("Save as snippet")} title={t("Save as snippet")}>
+            <TextQuote size={14} />
+          </button>
+        </>
+      )}
     </BubbleMenu>
   );
 }

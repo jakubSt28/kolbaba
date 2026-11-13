@@ -272,6 +272,47 @@
 [data-theme="dark"] .cal-dot {
   background: oklch(0.74 0.14 var(--h));
 }
+/* Tasks: the tick box and the flag in the priority's colour (red, amber, blue; grey for none). */
+.task-check,
+.task-flag {
+  --c: var(--ink-3);
+}
+.task-check[data-p="3"],
+.task-flag[data-p="3"] {
+  --c: var(--danger);
+}
+.task-check[data-p="2"],
+.task-flag[data-p="2"] {
+  --c: var(--warning);
+}
+.task-check[data-p="1"],
+.task-flag[data-p="1"] {
+  --c: oklch(0.62 0.15 255);
+}
+.task-check {
+  box-shadow: inset 0 0 0 1.5px var(--c);
+  color: transparent;
+}
+button:hover > .task-check:not([data-on]) {
+  background: color-mix(in oklch, var(--c) 14%, transparent);
+  color: color-mix(in oklch, var(--c) 55%, transparent);
+}
+.task-check[data-on] {
+  background: color-mix(in oklch, var(--c) 60%, var(--solid));
+  box-shadow: none;
+  color: #fff;
+}
+.task-flag {
+  color: var(--c);
+}
+.task-flag:not([data-p="0"]) {
+  fill: var(--c);
+}
+[data-theme="dark"] .task-check[data-p="1"],
+[data-theme="dark"] .task-flag[data-p="1"] {
+  --c: oklch(0.7 0.13 255);
+}
+
 [data-theme="dark"] .cal-check {
   box-shadow: inset 0 0 0 1.5px oklch(0.74 0.14 var(--h));
 }

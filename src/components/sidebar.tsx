@@ -56,6 +56,7 @@ import { droppedThreads, isThreadDrag } from "@/lib/drag-threads";
 import { useCalendar } from "@/lib/calendar/store";
 import { BrandMark } from "./brand-mark";
 import { CalendarSidebar, ModeSwitch } from "./calendar/calendar-sidebar";
+import { TasksSidebar } from "./tasks/tasks-sidebar";
 import { openFolderDialog } from "./folders";
 import { installLabel, startInstall, useInstall } from "./install-guide";
 import { FolderGlyph, NavIcon, PlayContext, TravelIcon, type IconGesture } from "./nav-icon";
@@ -130,9 +131,9 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
     (s) => s.agentEvents.filter((e) => e.undoable && !e.undone && now - e.at < 86_400_000).length,
   );
   const layout = useMail((s) => s.sidebar);
-  // The calendar has its own sidebar under the same name and switch (components/calendar/calendar-sidebar.tsx).
-  const calendar = useCalendar((s) => s.mode === "calendar");
-  const editing = useMail((s) => s.sidebarEditing) && !collapsed && !calendar;
+  // The calendar and the tasks have their own sidebars under the same name and switch (components/calendar/calendar-sidebar.tsx, components/tasks/tasks-sidebar.tsx).
+  const mode = useCalendar((s) => s.mode);
+  const editing = useMail((s) => s.sidebarEditing) && !collapsed && mode === "mail";
   const setEditing = useMail((s) => s.setSidebarEditing);
   const [moreOpen, setMoreOpen] = useMoreOpen();
   const folders = useMail((s) => s.folders);
@@ -285,10 +286,10 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
           {!collapsed && <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{BRAND.name}</span>}
           {!collapsed && unseenNews && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("New@@news")} />}
         </button>
-        {/* Mail or calendar: two apps under one name. */}
+        {/* Mail, calendar or tasks: three apps under one name. */}
         {!editing && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
         {/* Edit, where iOS Mail has it: always there on a touch screen, with the pointer over the sidebar on a computer. */}
-        {!collapsed && !editing && !calendar && (
+        {!collapsed && !editing && mode === "mail" && (
           <Tooltip label={t("Edit sidebar")} side="bottom">
             <button
               onClick={() => setEditing(true)}
@@ -302,8 +303,10 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
         )}
       </div>
 
-      {calendar ? (
+      {mode === "calendar" ? (
         <CalendarSidebar collapsed={collapsed} onNavigate={onNavigate} />
+      ) : mode === "tasks" ? (
+        <TasksSidebar collapsed={collapsed} onNavigate={onNavigate} />
       ) : editing ? (
         <SidebarEditor sections={sections} onDone={() => setEditing(false)} />
       ) : (

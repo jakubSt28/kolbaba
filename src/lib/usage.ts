@@ -27,6 +27,10 @@ export const FEATURE_GROUPS = [
     title: tk("Calendar"),
     features: ["calOpen", "calEventNew", "calEventEdit", "calEventDelete", "calRsvp", "calFilter", "calView", "calConnect", "calImport", "calFeed", "calJoin", "calMove", "calSearch", "calReminder"],
   },
+  {
+    title: tk("Tasks"),
+    features: ["tasksOpen", "taskNew", "taskQuick", "taskDone", "taskDate", "taskPriority", "taskNotes", "taskDrag"],
+  },
 ] as const;
 
 export type Feature = (typeof FEATURE_GROUPS)[number]["features"][number];
@@ -111,6 +115,14 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   calMove: tk("Moving an event by dragging"),
   calSearch: tk("Searching events"),
   calReminder: tk("Setting an event's own reminder"),
+  tasksOpen: tk("Opening the tasks"),
+  taskNew: tk("New task"),
+  taskQuick: tk("A day or priority typed with the task"),
+  taskDone: tk("Ticking a task off"),
+  taskDate: tk("Giving a task a day"),
+  taskPriority: tk("Giving a task a priority"),
+  taskNotes: tk("Writing a task's description"),
+  taskDrag: tk("Moving a task by dragging"),
 };
 
 /** Opening a folder or view counts as using it; the user's own folders count together. */

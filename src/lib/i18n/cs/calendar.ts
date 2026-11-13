@@ -5,7 +5,6 @@ export const calendar: Dictionary = {
   // Mail | Calendar
   Calendar: "Kalendář",
   "Mail@@mode": "Pošta",
-  "Mail or calendar": "Pošta nebo kalendář",
   Calendars: "Kalendáře",
 
   // Getting around
