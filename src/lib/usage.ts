@@ -29,7 +29,7 @@ export const FEATURE_GROUPS = [
   },
   {
     title: tk("Tasks"),
-    features: ["tasksOpen", "taskNew", "taskQuick", "taskDone", "taskDate", "taskPriority", "taskNotes", "taskDrag"],
+    features: ["tasksOpen", "taskNew", "taskQuick", "taskDone", "taskDate", "taskPriority", "taskNotes", "taskDrag", "taskList", "taskRepeat", "taskImport"],
   },
 ] as const;
 
@@ -123,6 +123,9 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   taskPriority: tk("Giving a task a priority"),
   taskNotes: tk("Writing a task's description"),
   taskDrag: tk("Moving a task by dragging"),
+  taskList: tk("Making a task list"),
+  taskRepeat: tk("Making a task repeat"),
+  taskImport: tk("Importing from TickTick"),
 };
 
 /** Opening a folder or view counts as using it; the user's own folders count together. */

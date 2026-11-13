@@ -1,6 +1,6 @@
 import { addDays, dayKey, parseDay, startOfDay } from "../calendar/dates";
 import { intlLocale, t } from "../i18n";
-import type { Priority, Task, TaskSort, TaskView } from "./types";
+import { viewListId, type Priority, type Task, type TaskSort, type TaskView } from "./types";
 
 /**
  * What the task lists are made of, apart from the screen: which tasks a view holds, the sections
@@ -28,18 +28,28 @@ export function isOverdue(task: Pick<Task, "due" | "time" | "completedAt">, now:
   return away < 0 || (away === 0 && !!task.time && task.time < clockOf(now));
 }
 
-/** The open tasks a view lists; "completed" and "trash" list theirs. */
+/** A list's own view (the Inbox or one of the user's): the tasks in it, done or not. */
+const inList = (task: Task, view: TaskView) => (view === "inbox" ? task.listId === null : task.listId === viewListId(view));
+const isList = (view: TaskView) => view === "inbox" || viewListId(view) !== null;
+
+/** The open tasks a view lists; "completed" and "trash" list theirs. Today and the 7 days take them from every list. */
 export function inView(task: Task, view: TaskView, now: Date) {
   if (view === "trash") return task.deletedAt !== null;
   if (view === "completed") return isDone(task);
   if (!isOpen(task)) return false;
-  if (view === "inbox") return true;
+  if (isList(view)) return inList(task, view);
   if (!task.due) return false;
   return daysAway(task.due, now) <= (view === "today" ? 0 : 6);
 }
 
 /** The number next to a view in the sidebar: what's still to do there. */
 export const viewCount = (tasks: Task[], view: TaskView, now: Date) => tasks.filter((x) => inView(x, view, now)).length;
+
+/** "🌱Garden" → 🌱 and Garden: a list's emoji is drawn in place of its icon. */
+export function splitEmoji(text: string): { emoji: string | null; name: string } {
+  const m = /^((?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Regional_Indicator})|\p{Regional_Indicator})*)\s*(.*)$/u.exec(text.trim());
+  return m && m[2] ? { emoji: m[1], name: m[2] } : { emoji: null, name: text.trim() };
+}
 
 /* ---------------------------------- Order ---------------------------------- */
 
@@ -157,10 +167,10 @@ export function sectionsOf(tasks: Task[], view: TaskView, sort: TaskSort, now: D
     add({ key: "all", title: null, tasks: open });
   }
 
-  // What was ticked off goes last: in Today and the 7 days what was done today of theirs, in the Inbox all of it.
+  // What was ticked off goes last: in Today and the 7 days what was done today of theirs, in a list all of its own.
   const done = tasks
     .filter(isDone)
-    .filter((x) => view === "inbox" || (dayKey(new Date(x.completedAt!)) === today && !!x.due && daysAway(x.due, now) <= (view === "today" ? 0 : 6)))
+    .filter((x) => (isList(view) ? inList(x, view) : dayKey(new Date(x.completedAt!)) === today && !!x.due && daysAway(x.due, now) <= (view === "today" ? 0 : 6)))
     .sort((a, b) => b.completedAt! - a.completedAt!);
   if (done.length) sections.push({ key: "done", title: t("Completed"), tasks: done, done: true });
   return sections;

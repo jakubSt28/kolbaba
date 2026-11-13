@@ -1,17 +1,17 @@
 "use client";
 
-import { AlignLeft, ArchiveRestore, CalendarDays, Check, ChevronDown, CircleCheckBig, GripVertical, Inbox, Plus, Sun, Sunrise, Trash2, X } from "lucide-react";
+import { AlignLeft, ArchiveRestore, CalendarDays, Check, ChevronDown, ChevronRight, CircleCheckBig, GripVertical, Inbox, List, Plus, Repeat, Sun, Sunrise, Trash2, X } from "lucide-react";
 import { ContextMenu } from "radix-ui";
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
 import { dayFrom, dueLabel, isOverdue, parseQuickAdd, priorityLabel, sectionsOf, type TaskSection } from "@/lib/tasks/logic";
 import { canReorder, isFolded, sortOf, useTasks } from "@/lib/tasks/store";
-import { PRIORITIES, TRASH_DAYS, type Priority, type Task, type TaskView } from "@/lib/tasks/types";
+import { PRIORITIES, TRASH_DAYS, viewListId, type Priority, type Task, type TaskList as TaskListType, type TaskView } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
 import { track } from "@/lib/usage";
 import { cn } from "@/lib/utils";
-import { menuContentClass, menuItemClass } from "../ui";
+import { menuContentClass, menuItemClass, subTriggerClass } from "../ui";
 import { DatePicker, PriorityFlag, PriorityMenu, TaskCheck, type DueValue } from "./task-bits";
 
 /** What a dragged task carries (a type of its own, so mail drops ignore it). */
@@ -31,8 +31,18 @@ export function changesTask(section: TaskSection, task: Task) {
   );
 }
 
-export function viewTitle(view: TaskView) {
+export function viewTitle(view: TaskView, lists: TaskListType[]) {
+  const list = viewListId(view);
+  if (list) return lists.find((l) => l.id === list)?.name ?? t("Inbox@@tasks");
   return view === "today" ? t("Today") : view === "next7" ? t("Next 7 days") : view === "inbox" ? t("Inbox@@tasks") : view === "completed" ? t("Completed") : t("Trash");
+}
+
+/** A view's title as it's shown on top, with a list's emoji. */
+export function useViewTitle() {
+  const view = useTasks((s) => s.view);
+  const list = useTasks((s) => s.lists.find((l) => l.id === viewListId(s.view)));
+  const lists = useTasks((s) => s.lists);
+  return list ? `${list.emoji ? `${list.emoji} ` : ""}${list.name}` : viewTitle(view, lists);
 }
 
 /** The sections on screen now, as they're drawn. */
@@ -53,7 +63,7 @@ export function TaskList({ mobile }: { mobile?: boolean }) {
   const sections = useSections();
   const moreCompleted = useTasks((s) => s.moreCompleted && s.view === "completed");
   const loadingMore = useTasks((s) => s.loadingMore);
-  const adds = view === "today" || view === "next7" || view === "inbox";
+  const adds = view !== "completed" && view !== "trash";
   const empty = ready && !sections.some((s) => s.tasks.length);
 
   return (
@@ -93,6 +103,8 @@ function Empty({ view }: { view: TaskView }) {
         ? [CalendarDays, t("Nothing in the next 7 days"), t("Tasks with a day this week show up here.")]
         : view === "inbox"
           ? [Inbox, t("No tasks yet"), t("Type one above and press Enter. Words like “tomorrow” or “!high” at its end set its day and priority.")]
+          : viewListId(view)
+            ? [List, t("Nothing in this list yet"), t("Add a task above, or drag one here from another list.")]
           : view === "completed"
             ? [CircleCheckBig, t("Nothing completed yet"), t("Tasks you tick off wait here.")]
             : [Trash2, t("Trash is empty"), t("Deleted tasks wait here for {days} days.", { days: TRASH_DAYS })];
@@ -116,6 +128,8 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
   const focus = useTasks((s) => s.addFocus);
   const [text, setText] = useState("");
   const [picked, setPicked] = useState<{ due?: DueValue; priority?: Priority }>({});
+  const listId = viewListId(view);
+  const list = useTasks((s) => s.lists.find((l) => l.id === listId));
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,14 +137,14 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
   }, [focus]);
 
   const parsed = parseQuickAdd(text, now);
-  const base: DueValue = picked.due ?? { due: view === "inbox" ? null : dayFrom(now, 0), time: null };
-  const due: DueValue = parsed.due !== undefined ? { due: parsed.due, time: parsed.time ?? null } : base;
+  const base: DueValue = picked.due ?? { due: view === "today" || view === "next7" ? dayFrom(now, 0) : null, time: null, repeat: null };
+  const due: DueValue = parsed.due !== undefined ? { due: parsed.due, time: parsed.time ?? null, repeat: base.repeat } : base;
   const priority = parsed.priority ?? picked.priority ?? 0;
 
   const submit = () => {
     const title = parsed.title.trim();
     if (!title) return;
-    add({ title, due: due.due, time: due.due ? due.time : null, priority });
+    add({ title, due: due.due, time: due.due ? due.time : null, repeat: due.due ? due.repeat : null, priority, listId });
     if (parsed.due !== undefined || parsed.priority !== undefined) track("taskQuick");
     setText("");
     setPicked({});
@@ -154,7 +168,7 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()}
         enterKeyHint="done"
-        placeholder={view === "inbox" ? t("Add a task to the Inbox") : t("Add a task for today")}
+        placeholder={list ? t("Add a task to {list}", { list: list.name }) : view === "inbox" ? t("Add a task to the Inbox") : t("Add a task for today")}
         aria-label={t("New task")}
         className="h-full min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
       />
@@ -170,6 +184,7 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
           >
             <CalendarDays size={15} />
             {due.due && <span className="whitespace-nowrap">{dueLabel(due, now)}</span>}
+            {due.due && due.repeat && <Repeat size={12} />}
           </button>
         </DatePicker>
         <PriorityMenu value={priority} onChange={(p) => setPicked((x) => ({ ...x, priority: p }))}>
@@ -263,6 +278,8 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   const today = task.due === dayFrom(now, 0);
   const label = dueLabel(task, now);
   const draggable = !mobile && !trashed;
+  // Where it lives, when the view gathers tasks from every list (as TickTick shows "Inbox" there).
+  const list = useTasks((s) => (s.lists.length && !viewListId(s.view) && s.view !== "inbox" ? (task.listId ? (s.lists.find((l) => l.id === task.listId) ?? null) : "inbox") : null));
 
   return (
     <TaskContextMenu task={task}>
@@ -295,7 +312,11 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
           <span className={cn("min-w-0 flex-1 truncate text-[14px]", done || trashed ? "text-ink-3" : "text-ink", done && "line-through decoration-ink-3/60", !task.title && "text-ink-3 italic")}>
             {task.title || t("(No title)")}
           </span>
+          {list && !mobile && (
+            <span className="max-w-[140px] shrink-0 truncate text-[12px] text-ink-3">{list === "inbox" ? t("Inbox@@tasks") : `${list.emoji ? `${list.emoji} ` : ""}${list.name}`}</span>
+          )}
           {task.notes && <AlignLeft size={13} aria-label={t("Has a description")} className="shrink-0 text-ink-3" />}
+          {task.repeat && task.due && !done && <Repeat size={12} aria-label={t("Repeats")} className="shrink-0 text-ink-3" />}
           {label && (
             <span className={cn("shrink-0 text-[12px] whitespace-nowrap tabular-nums", done || trashed ? "text-ink-3" : overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3")}>{label}</span>
           )}
@@ -312,6 +333,7 @@ const iconItem = "flex h-9 flex-1 cursor-pointer items-center justify-center rou
 /** A task's quick changes on a right click: its day, its priority, Trash. */
 function TaskContextMenu({ task, children }: { task: Task; children: ReactNode }) {
   const { update, complete, remove, restore, destroy } = useTasks.getState();
+  const lists = useTasks((s) => s.lists);
   const now = new Date();
   const trashed = task.deletedAt !== null;
   const days: { label: string; icon: ReactNode; due: string | null }[] = [
@@ -356,6 +378,19 @@ function TaskContextMenu({ task, children }: { task: Task; children: ReactNode }
                 ))}
               </div>
               <ContextMenu.Separator className="my-1 h-px bg-line" />
+              {lists.some((l) => l.kind === "list") && (
+                <ContextMenu.Sub>
+                  <ContextMenu.SubTrigger className={subTriggerClass}>
+                    <List size={14} /> <span className="flex-1">{t("Move to list")}</span>
+                    <ChevronRight size={14} />
+                  </ContextMenu.SubTrigger>
+                  <ContextMenu.Portal>
+                    <ContextMenu.SubContent sideOffset={4} collisionPadding={8} className={cn(menuContentClass, "max-h-[60vh] w-[220px] overflow-y-auto")}>
+                      <ListChoices current={task.listId} onPick={(listId) => update(task.id, { listId })} Item={ContextMenu.Item} />
+                    </ContextMenu.SubContent>
+                  </ContextMenu.Portal>
+                </ContextMenu.Sub>
+              )}
               <ContextMenu.Item className={menuItemClass} onSelect={() => complete(task.id, task.completedAt === null)}>
                 <Check size={14} /> {task.completedAt === null ? t("Mark as done") : t("Mark as not done")}
               </ContextMenu.Item>
@@ -367,5 +402,43 @@ function TaskContextMenu({ task, children }: { task: Task; children: ReactNode }
         </ContextMenu.Content>
       </ContextMenu.Portal>
     </ContextMenu.Root>
+  );
+}
+
+/** The Inbox and every list, folders' lists under their folder: where a task can go. */
+export function ListChoices({
+  current,
+  onPick,
+  Item,
+}: {
+  current: string | null;
+  onPick: (listId: string | null) => void;
+  /** The menu's own item (a right-click menu's or a dropdown's). */
+  Item: React.ComponentType<{ className?: string; onSelect?: () => void; children?: ReactNode }>;
+}) {
+  const lists = useTasks((s) => s.lists);
+  const ordered = [...lists].sort((a, b) => a.order - b.order);
+  const top = ordered.filter((l) => !l.folderId);
+  const row = (l: { id: string | null; name: string; emoji: string | null }, indent = false) => (
+    <Item key={l.id ?? "inbox"} className={cn(menuItemClass, indent && "pl-6")} onSelect={() => onPick(l.id)}>
+      <span className="inline-flex w-4 justify-center">{l.id === null ? <Inbox size={14} /> : l.emoji ? <span className="text-[13px] leading-none">{l.emoji}</span> : <List size={14} />}</span>
+      <span className="min-w-0 flex-1 truncate">{l.name}</span>
+      {current === l.id && <Check size={14} />}
+    </Item>
+  );
+  return (
+    <>
+      {row({ id: null, name: t("Inbox@@tasks"), emoji: null })}
+      {top.map((l) =>
+        l.kind === "folder" ? (
+          <div key={l.id}>
+            <div className="px-2.5 pt-1.5 pb-0.5 text-[11px] font-medium text-ink-3">{`${l.emoji ? `${l.emoji} ` : ""}${l.name}`}</div>
+            {ordered.filter((x) => x.folderId === l.id).map((x) => row(x, true))}
+          </div>
+        ) : (
+          row(l)
+        ),
+      )}
+    </>
   );
 }

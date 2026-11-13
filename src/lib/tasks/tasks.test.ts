@@ -17,6 +17,8 @@ const task = (over: Partial<Task> = {}): Task => ({
   deletedAt: null,
   order: n,
   createdAt: 0,
+  listId: null,
+  repeat: null,
   ...over,
 });
 

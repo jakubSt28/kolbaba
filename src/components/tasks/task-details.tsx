@@ -4,11 +4,12 @@ import { TaskItem, TaskList as TaskListExtension } from "@tiptap/extension-list"
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { ArchiveRestore, CalendarDays, ChevronLeft, Ellipsis, MousePointerClick, Trash2 } from "lucide-react";
+import { ArchiveRestore, CalendarDays, ChevronDown, ChevronLeft, Ellipsis, Inbox, List, MousePointerClick, Repeat, Trash2 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { intlLocale, t } from "@/lib/i18n";
 import { dayFrom, isOverdue, longDueLabel, priorityLabel } from "@/lib/tasks/logic";
+import { ruleLabel } from "@/lib/tasks/repeat";
 import { useTasks } from "@/lib/tasks/store";
 import { TRASH_DAYS, type Task } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
@@ -20,6 +21,7 @@ import { settle } from "../editor/settle";
 import { SlashCommand } from "../editor/slash-command";
 import { menuContentClass, menuItemClass } from "../ui";
 import { DatePicker, PriorityFlag, PriorityMenu, TaskCheck } from "./task-bits";
+import { ListChoices } from "./task-list";
 
 const formatDate = (ms: number) => new Intl.DateTimeFormat(intlLocale(), { day: "numeric", month: "long", year: "numeric" }).format(new Date(ms));
 
@@ -58,7 +60,10 @@ function Details({ task, mobile, onBack }: { task: Task; mobile?: boolean; onBac
         )}
         <TaskCheck task={task} size={18} disabled={trashed} onToggle={() => complete(task.id, !done)} />
         <span className="mx-1 h-4 w-px shrink-0 bg-line" />
-        <DatePicker value={{ due: task.due, time: task.time }} onChange={(v) => update(task.id, { due: v.due, time: v.due ? v.time : null })}>
+        <DatePicker
+          value={{ due: task.due, time: task.time, repeat: task.repeat }}
+          onChange={(v) => update(task.id, { due: v.due, time: v.due ? v.time : null, repeat: v.due ? v.repeat : null })}
+        >
           <button
             disabled={trashed}
             className={cn(
@@ -68,6 +73,7 @@ function Details({ task, mobile, onBack }: { task: Task; mobile?: boolean; onBac
           >
             <CalendarDays size={16} className="shrink-0" />
             <span className="truncate">{task.due ? longDueLabel(task, now) : t("Date")}</span>
+            {task.due && task.repeat && <Repeat size={13} aria-label={ruleLabel(task.repeat, task.due)} className="shrink-0" />}
           </button>
         </DatePicker>
         <span className="flex-1" />
@@ -122,8 +128,10 @@ function Details({ task, mobile, onBack }: { task: Task; mobile?: boolean; onBac
         <Notes task={task} readOnly={trashed} focusRef={notesRef} />
       </div>
 
-      <div className={cn("shrink-0 border-t border-line px-5 py-2.5 text-[12px] text-ink-3", mobile && "pb-[max(10px,var(--safe-bottom))]")}>
-        {done ? t("Completed on {date}", { date: formatDate(task.completedAt!) }) : t("Created on {date}", { date: formatDate(task.createdAt) })}
+      <div className={cn("flex shrink-0 items-center gap-2 border-t border-line py-1.5 pr-5 pl-3 text-[12px] text-ink-3", mobile && "pb-[max(6px,var(--safe-bottom))]")}>
+        <ListPicker task={task} disabled={trashed} />
+        <span className="flex-1" />
+        <span className="truncate">{done ? t("Completed on {date}", { date: formatDate(task.completedAt!) }) : t("Created on {date}", { date: formatDate(task.createdAt) })}</span>
       </div>
     </div>
   );
@@ -261,5 +269,29 @@ function Notes({ task, readOnly, focusRef }: { task: Task; readOnly: boolean; fo
       <EditorContent editor={editor} />
       {editor && !readOnly && <FormatBubble editor={editor} snippets={false} />}
     </div>
+  );
+}
+
+/** The list a task is in, at the foot of its details as in TickTick; a click moves it to another. */
+function ListPicker({ task, disabled }: { task: Task; disabled: boolean }) {
+  const list = useTasks((s) => s.lists.find((l) => l.id === task.listId));
+  const hasLists = useTasks((s) => s.lists.some((l) => l.kind === "list"));
+  const label = list ? list.name : t("Inbox@@tasks");
+  return (
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger
+        disabled={disabled || !hasLists}
+        className="flex h-8 min-w-0 items-center gap-1.5 rounded-[8px] px-2 text-[12.5px] text-ink-2 outline-none transition-colors hover:bg-hover data-[state=open]:bg-hover disabled:hover:bg-transparent"
+      >
+        {list?.emoji ? <span className="text-[13px] leading-none">{list.emoji}</span> : list ? <List size={14} /> : <Inbox size={14} />}
+        <span className="truncate">{label}</span>
+        {hasLists && !disabled && <ChevronDown size={13} className="shrink-0 text-ink-3" />}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content side="top" align="start" sideOffset={6} collisionPadding={8} className={cn(menuContentClass, "max-h-[60vh] w-[220px] overflow-y-auto")}>
+          <ListChoices current={task.listId} onPick={(listId) => useTasks.getState().update(task.id, { listId })} Item={DropdownMenu.Item} />
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }

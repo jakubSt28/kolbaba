@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Circle, Clock, Flag, Moon, Sun, Sunrise, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Circle, Clock, Flag, Moon, Repeat, Sun, Sunrise, X } from "lucide-react";
 import { DropdownMenu, Popover } from "radix-ui";
 import { useState, type ReactNode } from "react";
 import { addMonths, dayKey, formatMonth, monthGrid, parseDay, sameDay, startOfMonth, weekdayShort } from "@/lib/calendar/dates";
 import { t } from "@/lib/i18n";
 import { clockOf, dayFrom, priorityLabel } from "@/lib/tasks/logic";
+import { repeatChoices, ruleLabel } from "@/lib/tasks/repeat";
 import { PRIORITIES, type Priority, type Task } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,8 @@ export function PriorityMenu({ value, onChange, children, align = "end" }: { val
 export interface DueValue {
   due: string | null;
   time: string | null;
+  /** How it repeats (an RRULE), on top of its day. */
+  repeat: string | null;
 }
 
 /** "+7": next week, the way TickTick draws it. */
@@ -148,7 +151,7 @@ function DatePanel({ value, onDone }: { value: DueValue; onDone: (v: DueValue | 
           <Tooltip key={q.label} label={q.label} side="top">
             <button
               aria-label={q.label}
-              onClick={() => onDone({ due: q.due, time: draft.time })}
+              onClick={() => onDone({ ...draft, due: q.due })}
               className={cn("flex h-10 items-center justify-center rounded-[10px] text-ink-2 transition-colors hover:bg-hover hover:text-ink", draft.due === q.due && "text-accent-text")}
             >
               {q.icon}
@@ -213,7 +216,7 @@ function DatePanel({ value, onDone }: { value: DueValue; onDone: (v: DueValue | 
                 type="time"
                 autoFocus={!value.time}
                 value={draft.time ?? ""}
-                onChange={(e) => setDraft((d) => ({ due: d.due ?? dayFrom(now, 0), time: e.target.value || null }))}
+                onChange={(e) => setDraft((d) => ({ ...d, due: d.due ?? dayFrom(now, 0), time: e.target.value || null }))}
                 className="h-8 rounded-[8px] bg-hover px-2 text-[13.5px] text-ink tabular-nums outline-none focus:shadow-[inset_0_0_0_1px_var(--accent)]"
               />
               <button
@@ -232,7 +235,7 @@ function DatePanel({ value, onDone }: { value: DueValue; onDone: (v: DueValue | 
               onClick={() => {
                 setTimeOpen(true);
                 // A time is on a day: today, unless one is picked.
-                setDraft((d) => ({ due: d.due ?? dayFrom(now, 0), time: nextHour(now) }));
+                setDraft((d) => ({ ...d, due: d.due ?? dayFrom(now, 0), time: nextHour(now) }));
               }}
               className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-[13px] text-ink-3 transition-colors hover:bg-hover hover:text-ink"
             >
@@ -243,9 +246,11 @@ function DatePanel({ value, onDone }: { value: DueValue; onDone: (v: DueValue | 
         </div>
       </div>
 
+      <RepeatRow draft={draft} onChange={(repeat) => setDraft((d) => ({ ...d, due: d.due ?? dayFrom(now, 0), repeat }))} />
+
       <div className="mt-2 grid grid-cols-2 gap-2">
         <button
-          onClick={() => onDone({ due: null, time: null })}
+          onClick={() => onDone({ due: null, time: null, repeat: null })}
           className="press h-9 rounded-[10px] text-[13.5px] font-medium text-ink-2 shadow-[inset_0_0_0_1px_var(--line)] [--press-scale:0.97] hover:bg-hover hover:text-ink"
         >
           {t("Clear")}
@@ -258,6 +263,38 @@ function DatePanel({ value, onDone }: { value: DueValue; onDone: (v: DueValue | 
         </button>
       </div>
     </div>
+  );
+}
+
+/** "Repeat": the choices TickTick offers for the picked day (daily, weekly on its weekday, weekdays, monthly, yearly). */
+function RepeatRow({ draft, onChange }: { draft: DueValue; onChange: (repeat: string | null) => void }) {
+  const choices = repeatChoices(draft.due);
+  const known = choices.some((c) => c.rule === draft.repeat);
+  return (
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left outline-none transition-colors hover:bg-hover data-[state=open]:bg-hover">
+        <Repeat size={16} className="shrink-0 text-ink-3" />
+        <span className="flex-1 text-[13.5px] text-ink-2">{t("Repeat")}</span>
+        <span className={cn("max-w-[150px] truncate text-[13px]", draft.repeat ? "text-accent-text" : "text-ink-3")}>{draft.repeat ? ruleLabel(draft.repeat, draft.due) : t("Doesn't repeat")}</span>
+        <ChevronRight size={14} className="shrink-0 text-ink-3" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content side="right" align="start" sideOffset={8} collisionPadding={8} className={cn(menuContentClass, "z-[60] w-[230px]")}>
+          {choices.map((c) => (
+            <DropdownMenu.Item key={c.rule ?? "none"} className={menuItemClass} onSelect={() => onChange(c.rule)}>
+              <span className="flex-1 truncate">{c.label}</span>
+              {draft.repeat === c.rule && <Check size={14} />}
+            </DropdownMenu.Item>
+          ))}
+          {draft.repeat && !known && (
+            <DropdownMenu.Item className={menuItemClass} onSelect={() => onChange(draft.repeat)}>
+              <span className="flex-1 truncate">{ruleLabel(draft.repeat, draft.due)}</span>
+              <Check size={14} />
+            </DropdownMenu.Item>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

@@ -1,8 +1,8 @@
 import { eq, like } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { newTaskId } from "@/lib/tasks/types";
+import { newListId, newTaskId } from "@/lib/tasks/types";
 import { db, schema } from "./db";
-import { createTask, deleteTask, emptyTrash, listTasks, TaskBody, TaskPatchBody, updateTask } from "./tasks";
+import { createTask, createTaskList, deleteTask, deleteTaskList, emptyTrash, ListBody, listTasks, TaskBody, TaskPatchBody, updateTask, updateTaskList } from "./tasks";
 
 const DOMAIN = "tasks-test.invalid";
 let me = "";
@@ -93,5 +93,52 @@ describe("tasks", () => {
     expect((await listTasks(me)).tasks.map((x) => x.title).sort()).toEqual(["B", "C"]);
     await emptyTrash(me);
     expect((await listTasks(me)).tasks).toEqual([]);
+  });
+
+  it("one time of a repeating task done: a completed copy stays, the task moves on", async () => {
+    const task = await createTask(me, input({ title: "Water the plants", due: "2026-11-13", repeat: "FREQ=DAILY" }));
+    expect(task.repeat).toBe("FREQ=DAILY;INTERVAL=1");
+    const doneId = newTaskId();
+    const moved = await updateTask(me, task.id, { due: "2026-11-14", doneId });
+    expect(moved).toMatchObject({ due: "2026-11-14", completedAt: null, repeat: "FREQ=DAILY;INTERVAL=1" });
+    const copy = (await listTasks(me)).tasks.find((x) => x.id === doneId);
+    expect(copy).toMatchObject({ title: "Water the plants", due: "2026-11-13", repeat: null });
+    expect(copy?.completedAt).not.toBeNull();
+    // A day taken away takes the repeating with it.
+    expect(await updateTask(me, task.id, { due: null })).toMatchObject({ due: null, repeat: null });
+  });
+});
+
+describe("lists", () => {
+  const list = (over: Partial<Parameters<typeof createTaskList>[1]> = {}) => ListBody.parse({ id: newListId(), kind: "list", name: "Errands", emoji: null, order: 0, ...over });
+
+  it("hold tasks, sit in folders, and are the user's own", async () => {
+    const folder = await createTaskList(me, list({ kind: "folder", name: "Someday", emoji: "🌙" }));
+    const garden = await createTaskList(me, list({ name: "Garden", folderId: folder.id }));
+    expect(garden.folderId).toBe(folder.id);
+    const task = await createTask(me, input({ listId: garden.id }));
+    expect(task.listId).toBe(garden.id);
+    expect((await listTasks(me)).lists.map((l) => l.name)).toEqual(["Someday", "Garden"]);
+    // A folder holds no tasks, and nobody else's list takes any.
+    await expect(createTask(me, input({ listId: folder.id }))).rejects.toMatchObject({ status: 404 });
+    await expect(createTask(other, input({ listId: garden.id }))).rejects.toMatchObject({ status: 404 });
+    await expect(updateTaskList(other, garden.id, { name: "Mine" })).rejects.toMatchObject({ status: 404 });
+    // Folders don't go into folders.
+    await expect(updateTaskList(me, folder.id, { folderId: folder.id })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("deleted, send their open tasks to Trash; a folder taken apart keeps its lists", async () => {
+    const folder = await createTaskList(me, list({ kind: "folder", name: "Someday" }));
+    const garden = await createTaskList(me, list({ name: "Garden", folderId: folder.id }));
+    const open = await createTask(me, input({ title: "Open", listId: garden.id }));
+    const done = await createTask(me, input({ title: "Done", listId: garden.id }));
+    await updateTask(me, done.id, { completed: true });
+    await deleteTaskList(me, folder.id);
+    expect((await listTasks(me)).lists).toEqual([expect.objectContaining({ id: garden.id, folderId: null })]);
+    await deleteTaskList(me, garden.id);
+    const { tasks, lists } = await listTasks(me);
+    expect(lists).toEqual([]);
+    expect(tasks.find((x) => x.id === open.id)).toMatchObject({ listId: null, deletedAt: expect.any(Number) });
+    expect(tasks.find((x) => x.id === done.id)).toMatchObject({ listId: null, deletedAt: null });
   });
 });

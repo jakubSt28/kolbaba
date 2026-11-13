@@ -1396,8 +1396,31 @@ export const tasks = pgTable(
     sortOrder: doublePrecision().notNull().default(0),
     completedAt: ts(),
     deletedAt: ts(),
+    /** Its list; null: the Inbox. */
+    listId: text().references(() => taskLists.id, { onDelete: "set null" }),
+    /** An iCalendar RRULE (src/lib/tasks/repeat.ts); null: once. */
+    repeat: text(),
     createdAt: createdAt(),
     updatedAt: ts().notNull().defaultNow(),
   },
   (t) => [index().on(t.userId, t.completedAt)],
+);
+
+/** The user's task lists, and folders that hold them (a list's `folderId`). */
+export const taskLists = pgTable(
+  "task_lists",
+  {
+    /** Picked by the app (lst_…), like a task's. */
+    id: text().primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text().$type<"list" | "folder">().notNull().default("list"),
+    name: text().notNull(),
+    emoji: text(),
+    folderId: text(),
+    sortOrder: doublePrecision().notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId)],
 );

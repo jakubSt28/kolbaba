@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Check, Ellipsis, Eye, EyeOff, Menu, Trash2 } from "lucide-react";
+import { ArrowUpDown, Check, Ellipsis, Eye, EyeOff, Menu, Trash2, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect } from "react";
@@ -16,7 +16,8 @@ import { confirmAction } from "../confirm";
 import { Drawer } from "../mobile-shell";
 import { menuContentClass, menuItemClass, Tooltip } from "../ui";
 import { TaskDetails } from "./task-details";
-import { TaskList, useSections, viewTitle } from "./task-list";
+import { TaskList, useSections, useViewTitle } from "./task-list";
+import { openTickTickImport, TickTickImportHost } from "./ticktick-import";
 
 /** Loaded when the tasks open, and fresh again on coming back to the window (another device may have changed them). */
 function useTasksData() {
@@ -154,20 +155,23 @@ function ViewMenus({ view, round }: { view: TaskView; round?: boolean }) {
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-      {done && (
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger aria-label={t("More")} className={button}>
-            <Ellipsis size={17} />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={6} collisionPadding={8} className={menuContentClass}>
+      <DropdownMenu.Root modal={false}>
+        <DropdownMenu.Trigger aria-label={t("More")} className={button}>
+          <Ellipsis size={17} />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" sideOffset={6} collisionPadding={8} className={menuContentClass}>
+            {done && (
               <DropdownMenu.Item className={menuItemClass} onSelect={() => setFolded(`${view}:${done.key}`, !doneFolded)}>
                 {doneFolded ? <Eye size={14} /> : <EyeOff size={14} />} {doneFolded ? t("Show completed") : t("Hide completed")}
               </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      )}
+            )}
+            <DropdownMenu.Item className={menuItemClass} onSelect={() => openTickTickImport()}>
+              <Upload size={14} /> {t("Import from TickTick")}
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </>
   );
 }
@@ -180,10 +184,12 @@ export function TasksMain() {
   const open = useCalendar((s) => s.mode === "tasks");
   useTasksShortcuts(open);
   const view = useTasks((s) => s.view);
+  const title = useViewTitle();
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <TickTickImportHost />
       <header className="flex h-14 shrink-0 items-center gap-1 pr-3 pl-5">
-        <h1 className="min-w-0 flex-1 truncate text-[19px] font-semibold tracking-[-0.02em]">{viewTitle(view)}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-[19px] font-semibold tracking-[-0.02em]">{title}</h1>
         <ViewMenus view={view} />
       </header>
       <div className="min-h-0 flex-1">
@@ -204,6 +210,7 @@ export function TasksDetailsPane() {
 export function MobileTasks() {
   useTasksData();
   const view = useTasks((s) => s.view);
+  const title = useViewTitle();
   const selected = useTasks((s) => !!s.selectedId && s.tasks.some((x) => x.id === s.selectedId));
   const setDrawerOpen = useMail((s) => s.setDrawerOpen);
   const close = () => useTasks.getState().select(null);
@@ -214,7 +221,7 @@ export function MobileTasks() {
         <button aria-label={t("Lists")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
           <Menu size={19} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate pl-1 text-[22px] leading-tight font-bold tracking-[-0.025em]">{viewTitle(view)}</h1>
+        <h1 className="min-w-0 flex-1 truncate pl-1 text-[22px] leading-tight font-bold tracking-[-0.025em]">{title}</h1>
         <ViewMenus view={view} round />
       </div>
       <div className="mx-2 mb-[max(8px,var(--safe-bottom))] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid pt-1 shadow-[var(--shadow-panel)]">
@@ -234,6 +241,7 @@ export function MobileTasks() {
         )}
       </AnimatePresence>
       <Drawer />
+      <TickTickImportHost />
     </div>
   );
 }
