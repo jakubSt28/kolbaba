@@ -3,12 +3,14 @@
 import { CalendarDays, CalendarPlus, Check, CircleCheckBig, ChevronLeft, ChevronRight, Ellipsis, Link2, Mail, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { motion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addMonths, dayKey, eventSpan, formatMonth, monthGrid, onDay, sameDay, startOfMonth, visibleDays, weekdayShort } from "@/lib/calendar/dates";
-import { calendarConnectUrl, useCalendar, visibleEvents, type AppMode } from "@/lib/calendar/store";
+import { calendarConnectUrl, todayLeft, useCalendar, visibleEvents, type AppMode } from "@/lib/calendar/store";
 import type { Calendar, CalendarSource, CalendarSuggestion } from "@/lib/calendar/types";
-import { t } from "@/lib/i18n";
-import { useMail } from "@/lib/store";
+import { t, tn } from "@/lib/i18n";
+import { unreadCount, useMail } from "@/lib/store";
+import { viewCount } from "@/lib/tasks/logic";
+import { useTasks } from "@/lib/tasks/store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { confirmAction } from "../confirm";
@@ -23,14 +25,52 @@ const MODES: { id: AppMode; icon: typeof Mail }[] = [
   { id: "tasks", icon: CircleCheckBig },
 ];
 
-/** The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. */
+/** How much waits in each: unread mail in the Inbox, what's left on today's calendar, today's tasks (with the late ones). */
+function useModeCounts(): Record<AppMode, number> {
+  const now = useNow();
+  const mail = useMail((s) => unreadCount(s.threads, "all"));
+  const calendar = useCalendar((s) => todayLeft(s, now));
+  const tasks = useTasks((s) => viewCount(s.tasks, "today", new Date(now)));
+
+  // The calendar and the tasks load once they're opened; their numbers are wanted before that.
+  useEffect(() => {
+    let last = 0;
+    const load = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 60_000) return;
+      last = Date.now();
+      void useCalendar.getState().loadToday();
+      const tasks = useTasks.getState();
+      void (tasks.ready ? tasks.refresh() : tasks.init());
+    };
+    load();
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, []);
+
+  return { mail, calendar, tasks };
+}
+
+/** The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. Each says how much waits in it. */
 export function ModeSwitch({ collapsed, onSwitch }: { collapsed?: boolean; onSwitch?: () => void }) {
   const mode = useCalendar((s) => s.mode);
   const setMode = useCalendar((s) => s.setMode);
+  const counts = useModeCounts();
   return (
     <div role="tablist" aria-label={t("Mail, calendar or tasks")} className={cn("relative flex shrink-0 rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
       {MODES.map((m) => {
-        const label = m.id === "mail" ? t("Mail@@mode") : m.id === "calendar" ? t("Calendar") : t("Tasks");
+        const name = m.id === "mail" ? t("Mail@@mode") : m.id === "calendar" ? t("Calendar") : t("Tasks");
+        const n = counts[m.id];
+        const label = !n
+          ? name
+          : m.id === "mail"
+            ? tn(n, "Mail: {n} unread", "Mail: {n} unread")
+            : m.id === "calendar"
+              ? tn(n, "Calendar: {n} event left today", "Calendar: {n} events left today")
+              : tn(n, "Tasks: {n} for today", "Tasks: {n} for today");
         return (
           <Tooltip key={m.id} label={label} side={collapsed ? "right" : "bottom"}>
             <button
@@ -51,6 +91,14 @@ export function ModeSwitch({ collapsed, onSwitch }: { collapsed?: boolean; onSwi
                 />
               )}
               <m.icon size={15} strokeWidth={mode === m.id ? 2.2 : 1.9} className={cn("relative transition-colors", mode === m.id ? "text-ink" : "text-ink-3")} />
+              {n > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute -top-1.5 -right-1 z-10 h-[15px] min-w-[15px] rounded-full bg-accent px-[4px] text-center text-[9.5px] leading-[15px] font-semibold text-on-accent tabular-nums ring-2 ring-[var(--glass-strong)]"
+                >
+                  {n > 99 ? "99+" : n}
+                </span>
+              )}
             </button>
           </Tooltip>
         );

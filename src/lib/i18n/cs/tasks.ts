@@ -5,6 +5,9 @@ export const tasks: Dictionary = {
   // Mail | Calendar | Tasks
   Tasks: "Úkoly",
   "Mail, calendar or tasks": "Pošta, kalendář nebo úkoly",
+  "Mail: {n} unread": { one: "Pošta: {n} nepřečtený", few: "Pošta: {n} nepřečtené", other: "Pošta: {n} nepřečtených" },
+  "Calendar: {n} events left today": { one: "Kalendář: dnes ještě {n} událost", few: "Kalendář: dnes ještě {n} události", other: "Kalendář: dnes ještě {n} událostí" },
+  "Tasks: {n} for today": { one: "Úkoly: {n} na dnešek", few: "Úkoly: {n} na dnešek", other: "Úkoly: {n} na dnešek" },
   Lists: "Seznamy",
 
   // Views and sections

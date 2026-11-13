@@ -70,7 +70,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     date: "2026-11-13",
     icon: "tasks",
     title: tk("Task lists, folders and repeating tasks"),
-    body: tk("Sort tasks into your own lists, put lists into folders, and start a name with an emoji to use it as the icon. A task can repeat every day, week, weekday, month or year: tick it off and it moves to its next day. Coming from TickTick? Import its backup and your lists and tasks come over."),
+    body: tk("Sort tasks into your own lists, put lists into folders, and start a name with an emoji to use it as the icon. A task can repeat every day, week, weekday, month or year: tick it off and it moves to its next day. Coming from TickTick? Import its backup and your lists and tasks come over. The switch next to Kolbaba's name now shows how much waits in each: unread mail, events left today and tasks for today."),
     action: "tasks",
   },
   {

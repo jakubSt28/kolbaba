@@ -72,8 +72,12 @@ interface CalendarState {
   renaming: string | null;
   /** Search is open: what's typed, and what was found for it (null until the first answer). */
   search: { query: string; results: CalEvent[] | null; busy: boolean } | null;
+  /** Today's events, for the number on the switch while the calendar hasn't loaded its days (null: not asked yet). */
+  today: CalEvent[] | null;
 
   setMode: (mode: AppMode) => void;
+  /** Today's events from the server's copy, for the switch's number (at most every few minutes unless `force`). */
+  loadToday: (force?: boolean) => Promise<void>;
   init: () => Promise<void>;
   /** Make sure the events of these days are here and fresh. */
   ensure: (from: Date, to: Date) => Promise<void>;
@@ -160,6 +164,7 @@ function nextSlot(day: Date, now = new Date()) {
 let seq = 0;
 let searchSeq = 0;
 let seenSent = false;
+let todayAt = 0;
 
 /** What the editor starts from for an event that's already there. */
 export function draftOf(e: CalEvent): EventInput {
@@ -259,6 +264,7 @@ export const useCalendar = create<CalendarState>()((set, get) => {
     adding: null,
     renaming: null,
     search: null,
+    today: null,
 
     setMode: (mode) => {
       if (get().mode === mode) return;
@@ -277,6 +283,19 @@ export const useCalendar = create<CalendarState>()((set, get) => {
       if (LIVE && !seenSent) {
         seenSent = true;
         saveSettings({ seen: true, ...(get().settings.timeZone === localZone() ? {} : { timeZone: localZone() }) });
+      }
+    },
+
+    loadToday: async (force) => {
+      if (!LIVE) return;
+      if (!force && Date.now() - todayAt < 5 * 60_000) return;
+      todayAt = Date.now();
+      const from = startOfDay(new Date());
+      try {
+        const { events } = await api.get<{ events: CalEvent[] }>(`/api/calendar/events?from=${from.toISOString()}&to=${addDays(from, 1).toISOString()}`);
+        set({ today: events });
+      } catch {
+        // Only a number: the calendar says what's wrong once it's opened.
       }
     },
 
@@ -664,6 +683,22 @@ if (typeof window !== "undefined") {
     if (useCalendar.getState().mode === "mail") return;
     if ((s.activeTabId && s.activeTabId !== prev.activeTabId) || s.folder !== prev.folder) useCalendar.getState().setMode("mail");
   });
+}
+
+/**
+ * What's still to come today, for the number on the switch: the loaded days when they cover today
+ * (they change as events are made and moved), else what loadToday brought.
+ */
+export function todayLeft(s: Pick<CalendarState, "events" | "calendars" | "loaded" | "today">, now = Date.now()) {
+  const from = startOfDay(new Date(now));
+  const to = addDays(from, 1);
+  const covered = s.loaded && s.loaded.from <= from.getTime() && s.loaded.to >= to.getTime();
+  const list = covered || !LIVE ? visibleEvents(s.events, s.calendars) : s.today;
+  if (!list) return 0;
+  return list.filter((e) => {
+    const span = eventSpan(e);
+    return span.start < to && span.end > from && (e.allDay || span.end.getTime() > now);
+  }).length;
 }
 
 /** When the event is, for sorting and "is it over". */
