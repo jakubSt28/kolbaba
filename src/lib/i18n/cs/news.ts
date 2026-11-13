@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Mail, calendar and tasks one tap apart on the phone": "Na telefonu přepneš mezi poštou, kalendářem a úkoly jedním klepnutím",
+  "On the phone, the Mail | Calendar | Tasks switch now sits at the top of the screen, next to the mailbox picker, with how much waits in each. In the task list, tap a task's date to change it right there, without opening the task.":
+    "Na telefonu je přepínač Pošta | Kalendář | Úkoly nahoře na obrazovce vedle výběru schránky a ukazuje, kolik v čem čeká. V seznamu úkolů klepni na datum úkolu a změníš ho rovnou tam, bez otevírání úkolu.",
   "Your AI agent can work with your tasks": "Tvůj AI agent teď umí pracovat s úkoly",
   "Share your tasks with an agent like Claude or ChatGPT, and it can read your lists, add a task from an email, change its day or priority, tick it off or move it to Trash. Turn it on when you connect the agent, or later in AI activity → Manage. Read only lets it look without changing anything, and every step can be undone in AI activity.":
     "Zpřístupni úkoly agentovi jako Claude nebo ChatGPT a on umí číst tvoje seznamy, přidat úkol z e-mailu, změnit mu datum nebo prioritu, odškrtnout ho nebo přesunout do koše. Zapneš to při připojení agenta, nebo později v Aktivitě AI → Spravovat. S úrovní Jen čtení se agent jen dívá a nic nemění. Každý jeho krok jde v Aktivitě AI vrátit.",

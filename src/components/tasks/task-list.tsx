@@ -270,7 +270,7 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   const now = new Date(useNow());
   const view = useTasks((s) => s.view);
   const selected = useTasks((s) => s.selectedId === task.id);
-  const { select, complete } = useTasks.getState();
+  const { select, complete, update } = useTasks.getState();
   const dragging = useTaskDrag((s) => s.id === task.id);
   const trashed = task.deletedAt !== null;
   const done = task.completedAt !== null;
@@ -317,9 +317,31 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
           )}
           {task.notes && <AlignLeft size={13} aria-label={t("Has a description")} className="shrink-0 text-ink-3" />}
           {task.repeat && task.due && !done && <Repeat size={12} aria-label={t("Repeats")} className="shrink-0 text-ink-3" />}
-          {label && (
-            <span className={cn("shrink-0 text-[12px] whitespace-nowrap tabular-nums", done || trashed ? "text-ink-3" : overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3")}>{label}</span>
-          )}
+          {label &&
+            (done || trashed ? (
+              <span className="shrink-0 text-[12px] whitespace-nowrap text-ink-3 tabular-nums">{label}</span>
+            ) : (
+              // The day changes right here, without opening the task. The picker is portalled, but its clicks
+              // still bubble through React to the row, which would open the task: they stop at this span.
+              <span className="flex shrink-0 self-stretch" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                <DatePicker
+                  align="end"
+                  value={{ due: task.due, time: task.time, repeat: task.repeat }}
+                  onChange={(v) => update(task.id, { due: v.due, time: v.due ? v.time : null, repeat: v.due ? v.repeat : null })}
+                >
+                  <button
+                    aria-label={t("Change the date: {date}", { date: label })}
+                    className={cn(
+                      "-mr-1.5 flex items-center self-center rounded-[7px] px-1.5 text-[12px] whitespace-nowrap tabular-nums transition-colors hover:bg-ink/[0.06] data-[state=open]:bg-ink/[0.06]",
+                      mobile ? "h-9" : "h-7",
+                      overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3",
+                    )}
+                  >
+                    {label}
+                  </button>
+                </DatePicker>
+              </span>
+            ))}
         </div>
       </div>
     </TaskContextMenu>

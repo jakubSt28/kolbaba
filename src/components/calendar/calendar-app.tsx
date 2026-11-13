@@ -10,6 +10,7 @@ import { LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
 import { Drawer } from "../mobile-shell";
+import { ModeSwitch } from "./calendar-sidebar";
 import { Segmented, Tooltip } from "../ui";
 import { AddCalendarHost, MailboxCalendars, OtherWays } from "./add-calendar";
 import { CalendarSearch } from "./calendar-search";
@@ -209,7 +210,8 @@ export function MobileCalendar() {
         <button aria-label={t("Calendars")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
           <Menu size={19} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate pl-1 text-[22px] leading-tight font-bold tracking-[-0.025em] first-letter:uppercase">{formatTitle(view === "day" ? "month" : view, days, new Date(anchor))}</h1>
+        <ModeSwitch phone />
+        <span className="flex-1" />
         {!empty && (
           <button aria-label={t("Search events")} onClick={openSearch} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
             <Search size={18} />
@@ -221,6 +223,7 @@ export function MobileCalendar() {
           </button>
         )}
       </div>
+      <h1 className="shrink-0 truncate px-4 pb-2 text-[28px] leading-tight font-bold tracking-[-0.03em] first-letter:uppercase">{formatTitle(view === "day" ? "month" : view, days, new Date(anchor))}</h1>
       {!empty && (
         <div className="shrink-0 px-3 pb-2">
           <Segmented

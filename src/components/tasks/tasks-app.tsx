@@ -12,6 +12,7 @@ import { isFolded, sortOf, useTasks } from "@/lib/tasks/store";
 import type { TaskSort, TaskView } from "@/lib/tasks/types";
 import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
+import { ModeSwitch } from "../calendar/calendar-sidebar";
 import { confirmAction } from "../confirm";
 import { Drawer } from "../mobile-shell";
 import { menuContentClass, menuItemClass, Tooltip } from "../ui";
@@ -221,9 +222,11 @@ export function MobileTasks() {
         <button aria-label={t("Lists")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
           <Menu size={19} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate pl-1 text-[22px] leading-tight font-bold tracking-[-0.025em]">{title}</h1>
+        <ModeSwitch phone />
+        <span className="flex-1" />
         <ViewMenus view={view} round />
       </div>
+      <h1 className="shrink-0 truncate px-4 pb-2 text-[28px] leading-tight font-bold tracking-[-0.03em]">{title}</h1>
       <div className="mx-2 mb-[max(8px,var(--safe-bottom))] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid pt-1 shadow-[var(--shadow-panel)]">
         <TaskList mobile />
       </div>

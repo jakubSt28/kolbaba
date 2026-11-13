@@ -52,7 +52,7 @@ function Details({ task, mobile, onBack }: { task: Task; mobile?: boolean; onBac
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className={cn("flex shrink-0 items-center gap-2 border-b border-line", mobile ? "h-14 px-2 pt-[env(safe-area-inset-top)]" : "h-14 px-4")}>
+      <div className={cn("flex shrink-0 items-center gap-2 border-b border-line", mobile ? "min-h-14 px-2 pt-[max(6px,env(safe-area-inset-top))] pb-1.5" : "h-14 px-4")}>
         {mobile && (
           <button onClick={onBack} aria-label={t("Back")} className="press flex size-10 shrink-0 items-center justify-center rounded-full text-ink [--press-scale:0.9]">
             <ChevronLeft size={22} />

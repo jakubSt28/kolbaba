@@ -26,6 +26,7 @@ export const tasks: Dictionary = {
   "Mark as not done": "Označit jako nehotové",
   "Task completed": "Úkol je hotový",
   "Has a description": "Má popis",
+  "Change the date: {date}": "Změnit datum: {date}",
   "What needs doing?": "Co je potřeba udělat?",
   "Add a description, or press / for blocks…": "Přidej popis, nebo stiskni / pro bloky…",
   "Click a task to see its details and write a description.": "Klikni na úkol a uvidíš jeho detail a můžeš mu napsat popis.",

@@ -58,13 +58,16 @@ function useModeCounts(): Record<AppMode, number> {
   return { mail, calendar, tasks };
 }
 
-/** The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. Each says how much waits in it. */
-export function ModeSwitch({ collapsed, onSwitch }: { collapsed?: boolean; onSwitch?: () => void }) {
+/**
+ * The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. Each says how much waits in it.
+ * On the phone (`phone`) it sits at the top of each screen as a round glass pill, not in the drawer: one tap away, and in plain sight.
+ */
+export function ModeSwitch({ collapsed, phone, onSwitch }: { collapsed?: boolean; phone?: boolean; onSwitch?: () => void }) {
   const mode = useCalendar((s) => s.mode);
   const setMode = useCalendar((s) => s.setMode);
   const counts = useModeCounts();
   return (
-    <div role="tablist" aria-label={t("Mail, calendar or tasks")} className={cn("relative flex shrink-0 rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
+    <div role="tablist" aria-label={t("Mail, calendar or tasks")} className={cn("relative flex shrink-0", phone ? "glass h-10 rounded-full p-[3px]" : "rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
       {MODES.map((m) => {
         const name = m.id === "mail" ? t("Mail@@mode") : m.id === "calendar" ? t("Calendar") : t("Tasks");
         const n = counts[m.id];
@@ -85,16 +88,19 @@ export function ModeSwitch({ collapsed, onSwitch }: { collapsed?: boolean; onSwi
                 setMode(m.id);
                 onSwitch?.();
               }}
-              className="press relative flex h-7 w-8 items-center justify-center rounded-[8px] [--press-scale:0.9] pointer-coarse:h-8 pointer-coarse:w-10"
+              className={cn(
+                "press relative flex items-center justify-center [--press-scale:0.9]",
+                phone ? "h-[34px] w-10 rounded-full" : "h-7 w-8 rounded-[8px] pointer-coarse:h-8 pointer-coarse:w-10",
+              )}
             >
               {mode === m.id && (
                 <motion.span
-                  layoutId={collapsed ? "mode-switch-narrow" : "mode-switch"}
+                  layoutId={phone ? "mode-switch-phone" : collapsed ? "mode-switch-narrow" : "mode-switch"}
                   transition={spring}
-                  className="absolute inset-0 rounded-[8px] bg-solid shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_var(--line)]"
+                  className={cn("absolute inset-0", phone ? "rounded-full bg-ink/[0.1]" : "rounded-[8px] bg-solid shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_var(--line)]")}
                 />
               )}
-              <m.icon size={15} strokeWidth={mode === m.id ? 2.2 : 1.9} className={cn("relative transition-colors", mode === m.id ? "text-ink" : "text-ink-3")} />
+              <m.icon size={phone ? 17 : 15} strokeWidth={mode === m.id ? 2.2 : 1.9} className={cn("relative transition-colors", mode === m.id ? "text-ink" : "text-ink-3")} />
               {n > 0 && (
                 <span
                   aria-hidden

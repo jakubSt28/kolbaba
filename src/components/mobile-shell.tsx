@@ -4,10 +4,12 @@ import { ChevronDown, ChevronLeft, Menu, Pin, Search, SquarePen } from "lucide-r
 import { AnimatePresence, motion, useDragControls } from "motion/react";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useCalendar } from "@/lib/calendar/store";
 import { isCategoryView } from "@/lib/insights";
 import { t, tk } from "@/lib/i18n";
 import { folderLabel, isBin, lastMessage, listedMessage, useMail, type Signature } from "@/lib/store";
 import { LIVE } from "@/lib/live";
+import { useTasks } from "@/lib/tasks/store";
 import { cn, dateGroup } from "@/lib/utils";
 import { Composer } from "./editor/composer";
 import { CategoryList } from "./category-view";
@@ -41,6 +43,7 @@ import { SwipeDraftRow, SwipeRow } from "./swipe-row";
 import { ThreadView } from "./reader";
 import { ActivityView } from "./activity";
 import { AddAccountView } from "./add-account";
+import { ModeSwitch } from "./calendar/calendar-sidebar";
 import { MailboxPicker, ScopeBadge, useScopeLabel } from "./mailbox-switcher";
 import { Sidebar } from "./sidebar";
 import { ClearSearch, MailboxBadge, spring } from "./ui";
@@ -74,7 +77,11 @@ export function MobileShell() {
   const [picking, setPicking] = useState(false);
   const guide = useInstallGuide((s) => !!s.open);
   const dimmed = useMail((s) => !!sheet || s.drawerOpen || s.settingsOpen) || picking || guide;
-  useTopEdge(pushed ? "var(--solid)" : dimmed ? DIMMED_CANVAS : null);
+  // The mail stays mounted under the calendar and the tasks: there, its open thread isn't what's on top.
+  const mode = useCalendar((s) => s.mode);
+  const taskOpen = useTasks((s) => !!s.selectedId && s.tasks.some((x) => x.id === s.selectedId));
+  const onTop = mode === "mail" ? !!pushed : mode === "tasks" && taskOpen;
+  useTopEdge(onTop ? "var(--solid)" : dimmed ? DIMMED_CANVAS : null);
 
   return (
     // A plain canvas on the phone: the soft colour fields read as smudges under the status bar.
@@ -253,11 +260,12 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
             >
               <Menu size={19} />
             </button>
+            <ModeSwitch phone />
             {/* The mailbox is the filter above every folder: always in reach, one tap to switch. */}
             <button
               aria-label={t("Mailbox: {name}", { name: scopeLabel })}
               onClick={onPickMailbox}
-              className="glass flex h-10 min-w-0 items-center gap-2 rounded-full pr-3 pl-1.5 text-[14px] font-medium text-ink press [--press-scale:0.97]"
+              className="glass flex h-10 min-w-0 items-center gap-1.5 rounded-full pr-2.5 pl-1.5 text-[14px] font-medium text-ink press [--press-scale:0.97]"
             >
               <ScopeBadge size={28} className="rounded-full" />
               <span className="truncate">{scopeLabel}</span>
@@ -528,7 +536,7 @@ export function Drawer() {
               if (info.offset.x < -70 || info.velocity.x < -400) setOpen(false);
             }}
           >
-            <Sidebar onNavigate={() => setOpen(false)} />
+            <Sidebar phone onNavigate={() => setOpen(false)} />
           </motion.aside>
         </>
       )}

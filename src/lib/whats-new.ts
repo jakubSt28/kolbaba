@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-13-phone-switch",
+    date: "2026-11-13",
+    icon: "tasks",
+    title: tk("Mail, calendar and tasks one tap apart on the phone"),
+    body: tk("On the phone, the Mail | Calendar | Tasks switch now sits at the top of the screen, next to the mailbox picker, with how much waits in each. In the task list, tap a task's date to change it right there, without opening the task."),
+    action: "tasks",
+  },
+  {
     id: "2026-11-13-agent-tasks",
     date: "2026-11-13",
     icon: "agents",

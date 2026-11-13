@@ -115,7 +115,8 @@ const CATEGORIES: CategoryView[] = ["orders", "travel", "invoices", "subscriptio
 /** Every folder follows the mailbox picked in the switcher above them. Contacts and Files aren't folders: they're tools at the top. */
 const FOLDERS: FolderId[] = ["inbox", "unanswered", "pinned", "snoozed", "scheduled", "drafts", "sent", "archive", "lists", "spam", "trash"];
 
-export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+/** `phone`: in the phone's drawer, where the Mail | Calendar | Tasks switch is at the top of the screen instead. */
+export function Sidebar({ collapsed = false, phone = false, onNavigate }: { collapsed?: boolean; phone?: boolean; onNavigate?: () => void }) {
   const threads = useMail((s) => s.threads);
   const drafts = useMail((s) => s.drafts);
   const scope = useMail((s) => s.scope);
@@ -287,7 +288,7 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
           {!collapsed && unseenNews && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("New@@news")} />}
         </button>
         {/* Mail, calendar or tasks: three apps under one name. */}
-        {!editing && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
+        {!editing && !phone && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
       </div>
 
       {mode === "calendar" ? (
