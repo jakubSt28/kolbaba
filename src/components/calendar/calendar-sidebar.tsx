@@ -9,7 +9,7 @@ import { calendarConnectUrl, todayLeft, useCalendar, visibleEvents, type AppMode
 import type { Calendar, CalendarSource, CalendarSuggestion } from "@/lib/calendar/types";
 import { t, tn } from "@/lib/i18n";
 import { unreadCount, useMail } from "@/lib/store";
-import { viewCount } from "@/lib/tasks/logic";
+import { dayFrom, isOpen } from "@/lib/tasks/logic";
 import { useTasks } from "@/lib/tasks/store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
@@ -25,12 +25,16 @@ const MODES: { id: AppMode; icon: typeof Mail }[] = [
   { id: "tasks", icon: CircleCheckBig },
 ];
 
-/** How much waits in each: unread mail in the Inbox, what's left on today's calendar, today's tasks (with the late ones). */
+/** How much waits in each: unread mail in the Inbox, what's left on today's calendar, the tasks due today. */
 function useModeCounts(): Record<AppMode, number> {
   const now = useNow();
   const mail = useMail((s) => unreadCount(s.threads, "all"));
   const calendar = useCalendar((s) => todayLeft(s, now));
-  const tasks = useTasks((s) => viewCount(s.tasks, "today", new Date(now)));
+  // Only what's due today: the late ones wait under Overdue and don't add to the number.
+  const tasks = useTasks((s) => {
+    const today = dayFrom(new Date(now), 0);
+    return s.tasks.filter((x) => isOpen(x) && x.due === today).length;
+  });
 
   // The calendar and the tasks load once they're opened; their numbers are wanted before that.
   useEffect(() => {
