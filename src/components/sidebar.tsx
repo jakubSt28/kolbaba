@@ -288,19 +288,6 @@ export function Sidebar({ collapsed = false, onNavigate }: { collapsed?: boolean
         </button>
         {/* Mail, calendar or tasks: three apps under one name. */}
         {!editing && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
-        {/* Edit, where iOS Mail has it: always there on a touch screen, with the pointer over the sidebar on a computer. */}
-        {!collapsed && !editing && mode === "mail" && (
-          <Tooltip label={t("Edit sidebar")} side="bottom">
-            <button
-              onClick={() => setEditing(true)}
-              aria-label={t("Edit sidebar")}
-              className="flex size-8 shrink-0 items-center justify-center rounded-[10px] text-ink-3 opacity-0 transition-[opacity,background-color,color] group-hover/nav:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 pointer-coarse:w-auto pointer-coarse:px-2 pointer-coarse:text-[15px] pointer-coarse:font-medium pointer-coarse:text-accent-text pointer-coarse:opacity-100"
-            >
-              <SlidersHorizontal size={15} className="pointer-coarse:hidden" />
-              <span className="hidden pointer-coarse:inline">{t("Edit")}</span>
-            </button>
-          </Tooltip>
-        )}
       </div>
 
       {mode === "calendar" ? (
