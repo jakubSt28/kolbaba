@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Check, CircleAlert, Eye, FilePen, Link2, LoaderCircle, Send, ShieldAlert, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, CircleCheckBig, CircleAlert, Eye, FilePen, Link2, LoaderCircle, Send, ShieldAlert, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Fragment, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { BrandMark } from "@/components/brand-mark";
@@ -99,6 +99,13 @@ const CALENDAR_HINT: Record<AgentPermission, string> = {
   full: tk("See, add, change and delete your events, and invite guests by email."),
 };
 
+/** What sharing the tasks lets the agent do at each access level (src/server/mcp/task-tools.ts). */
+const TASKS_HINT: Record<AgentPermission, string> = {
+  read: tk("See your tasks and lists."),
+  draft: tk("See, add, change, tick off and delete your tasks."),
+  full: tk("See, add, change, tick off and delete your tasks."),
+};
+
 const subscribeNever = () => () => {};
 /** Clickjacking guard: never let the Allow button work inside someone else's frame. */
 const readFramed = () => window.top !== window.self;
@@ -116,6 +123,7 @@ export function ConsentCard({
   otherAgents,
   mailboxes: initialMailboxes,
   calendar: initialCalendar,
+  tasks: initialTasks,
   hidden,
   verified,
 }: {
@@ -132,6 +140,8 @@ export function ConsentCard({
   mailboxes: ConsentMailbox[];
   /** Whether the calendar starts shared; null when the user has no calendar, and then it isn't asked about. */
   calendar: boolean | null;
+  /** Whether the tasks start shared. */
+  tasks: boolean;
   hidden: Record<string, string>;
 }) {
   const reduce = useReducedMotion();
@@ -140,6 +150,7 @@ export function ConsentCard({
   const [understood, setUnderstood] = useState(false);
   const [mailboxes, setMailboxes] = useState(initialMailboxes);
   const [calendar, setCalendar] = useState(!!initialCalendar);
+  const [tasks, setTasks] = useState(initialTasks);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   const selected = mailboxes.filter((m) => m.enabled).length;
@@ -202,7 +213,7 @@ export function ConsentCard({
           </span>
         </div>
         <h1 id="consent-title" className="text-[21px] leading-tight font-semibold tracking-[-0.022em] text-balance text-ink">
-          {initialCalendar !== null ? translate(locale, "{app} wants to access your mail and calendar", { app }) : translate(locale, "{app} wants to access your mail", { app })}
+          {initialCalendar !== null ? translate(locale, "{app} wants to access your mail, calendar and tasks", { app }) : translate(locale, "{app} wants to access your mail and tasks", { app })}
         </h1>
         <p className="mt-1.5 text-[13.5px] text-ink-3">
           {reconnecting ? `${translate(locale, "Reconnecting")} · ` : ""}
@@ -231,6 +242,8 @@ export function ConsentCard({
         ))}
         {initialCalendar !== null && <input type="hidden" name="calendar_shown" value="1" />}
         {initialCalendar !== null && calendar && <input type="hidden" name="calendar" value="1" />}
+        <input type="hidden" name="tasks_shown" value="1" />
+        {tasks && <input type="hidden" name="tasks" value="1" />}
 
         {/* Access level */}
         <fieldset disabled={busy}>
@@ -319,31 +332,30 @@ export function ConsentCard({
           )}
         </div>
 
-        {/* Calendar: shared apart from the mailboxes */}
-        {initialCalendar !== null && (
-          <div className="mt-6">
-            <div className="mb-2 px-1 text-[12px] font-medium text-ink-3">{translate(locale, "Calendar")}</div>
-            <div className="overflow-hidden rounded-2xl bg-solid/80 shadow-[inset_0_0_0_1px_var(--line)] dark:bg-white/[0.04]">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={calendar}
-                disabled={busy}
-                onClick={() => setCalendar((on) => !on)}
-                className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-hover disabled:cursor-default"
-              >
-                <span className={cn("flex size-[26px] shrink-0 items-center justify-center rounded-[8px] bg-accent-soft text-accent-text transition-opacity", !calendar && "opacity-45")}>
-                  <CalendarDays size={15} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className={cn("block text-[13.5px] font-medium transition-colors", calendar ? "text-ink" : "text-ink-3")}>{translate(locale, "Your calendar")}</span>
-                  <span className="block text-[12px] leading-snug text-ink-3">{translate(locale, CALENDAR_HINT[permission])}</span>
-                </span>
-                <Switch on={calendar} />
-              </button>
-            </div>
+        {/* Calendar and tasks: shared apart from the mailboxes */}
+        <div className="mt-6">
+          <div className="mb-2 px-1 text-[12px] font-medium text-ink-3">{initialCalendar !== null ? translate(locale, "Calendar and tasks") : translate(locale, "Tasks")}</div>
+          <div className="divide-y divide-line overflow-hidden rounded-2xl bg-solid/80 shadow-[inset_0_0_0_1px_var(--line)] dark:bg-white/[0.04]">
+            {initialCalendar !== null && (
+              <ShareSwitch
+                on={calendar}
+                busy={busy}
+                onToggle={() => setCalendar((on) => !on)}
+                icon={<CalendarDays size={15} />}
+                title={translate(locale, "Your calendar")}
+                hint={translate(locale, CALENDAR_HINT[permission])}
+              />
+            )}
+            <ShareSwitch
+              on={tasks}
+              busy={busy}
+              onToggle={() => setTasks((on) => !on)}
+              icon={<CircleCheckBig size={15} />}
+              title={translate(locale, "Your tasks")}
+              hint={translate(locale, TASKS_HINT[permission])}
+            />
           </div>
-        )}
+        </div>
 
         <div role="status" aria-live="polite">
           <AnimatePresence initial={false}>
@@ -544,5 +556,19 @@ function Collapse({ children }: { children: ReactNode }) {
     >
       {children}
     </motion.div>
+  );
+}
+
+/** A part of the app shared with the agent or not (the calendar, the tasks). */
+function ShareSwitch({ on, busy, onToggle, icon, title, hint }: { on: boolean; busy: boolean; onToggle: () => void; icon: ReactNode; title: string; hint: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} disabled={busy} onClick={onToggle} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-hover disabled:cursor-default">
+      <span className={cn("flex size-[26px] shrink-0 items-center justify-center rounded-[8px] bg-accent-soft text-accent-text transition-opacity", !on && "opacity-45")}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className={cn("block text-[13.5px] font-medium transition-colors", on ? "text-ink" : "text-ink-3")}>{title}</span>
+        <span className="block text-[12px] leading-snug text-ink-3">{hint}</span>
+      </span>
+      <Switch on={on} />
+    </button>
   );
 }

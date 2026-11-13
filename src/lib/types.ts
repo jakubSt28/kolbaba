@@ -511,6 +511,8 @@ export interface Agent {
   accountIds: string[];
   /** It may read the calendar, and change it as far as `permission` goes. */
   calendar?: boolean;
+  /** It may read the tasks, and change them as far as `permission` goes. */
+  tasks?: boolean;
   enabled: boolean;
   lastActiveAt: number;
 }
@@ -558,7 +560,13 @@ export type AgentStep =
   | { kind: "calendars" }
   /** Dates as YYYY-MM-DD. */
   | { kind: "events_listed"; from: string; to: string }
-  | { kind: "event_created" | "event_updated" | "event_deleted"; title: string; at: string; guests?: number };
+  | { kind: "event_created" | "event_updated" | "event_deleted"; title: string; at: string; guests?: number }
+  | { kind: "task_lists" }
+  /** Which tasks: "today", "next7", "inbox", "all", "completed", or a list's name. */
+  | { kind: "tasks_listed"; view: string }
+  | { kind: "task_created"; title: string }
+  | { kind: "task_updated"; title: string; done?: boolean }
+  | { kind: "task_deleted"; title: string };
 
 export type FolderId =
   | "inbox"

@@ -40,6 +40,7 @@ export async function applyConsent(userId: string | null, form: FormData): Promi
   const accountIds = await ownMailboxes(userId, form.getAll("mailbox").filter((v): v is string => typeof v === "string"));
   // The calendar is asked about only when the user has one; otherwise it stays as it was.
   const calendar = form.get("calendar_shown") === "1" ? form.get("calendar") === "1" : undefined;
-  const { redirect } = await approve(userId, check.client, check.params, permission as AgentPermission, accountIds, calendar);
+  const tasks = form.get("tasks_shown") === "1" ? form.get("tasks") === "1" : undefined;
+  const { redirect } = await approve(userId, check.client, check.params, permission as AgentPermission, accountIds, calendar, tasks);
   return { ok: true, redirect };
 }

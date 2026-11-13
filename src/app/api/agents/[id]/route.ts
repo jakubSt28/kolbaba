@@ -11,8 +11,9 @@ const Patch = z
     permission: z.enum(["read", "draft", "full"]).optional(),
     accountIds: z.array(z.string().max(64)).max(50).optional(),
     calendar: z.boolean().optional(),
+    tasks: z.boolean().optional(),
   })
-  .refine((p) => p.enabled !== undefined || p.permission !== undefined || p.accountIds !== undefined || p.calendar !== undefined, "Nothing to change");
+  .refine((p) => p.enabled !== undefined || p.permission !== undefined || p.accountIds !== undefined || p.calendar !== undefined || p.tasks !== undefined, "Nothing to change");
 
 export const PATCH = withUser<Ctx>(async (user, req, ctx) => {
   assertSameOrigin(req);

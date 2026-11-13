@@ -1255,6 +1255,8 @@ export const agents = pgTable(
     accountIds: jsonb().$type<string[]>().notNull().default([]),
     /** The agent may read the calendar, and change it as far as `permission` goes. Off until the user turns it on. */
     calendar: boolean().notNull().default(false),
+    /** The agent may read the tasks, and change them as far as `permission` goes. Off until the user turns it on. */
+    tasks: boolean().notNull().default(false),
     enabled: boolean().notNull().default(true),
     clientInfo: jsonb().$type<{ name?: string; version?: string; title?: string }>(),
     lastActiveAt: ts(),
@@ -1342,7 +1344,10 @@ export type AgentAction =
   | "screen"
   | "event_create"
   | "event_update"
-  | "event_delete";
+  | "event_delete"
+  | "task_create"
+  | "task_update"
+  | "task_delete";
 
 export const agentEvents = pgTable(
   "agent_events",

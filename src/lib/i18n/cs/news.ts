@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Your AI agent can work with your tasks": "Tvůj AI agent teď umí pracovat s úkoly",
+  "Share your tasks with an agent like Claude or ChatGPT, and it can read your lists, add a task from an email, change its day or priority, tick it off or move it to Trash. Turn it on when you connect the agent, or later in AI activity → Manage. Read only lets it look without changing anything, and every step can be undone in AI activity.":
+    "Zpřístupni úkoly agentovi jako Claude nebo ChatGPT a on umí číst tvoje seznamy, přidat úkol z e-mailu, změnit mu datum nebo prioritu, odškrtnout ho nebo přesunout do koše. Zapneš to při připojení agenta, nebo později v Aktivitě AI → Spravovat. S úrovní Jen čtení se agent jen dívá a nic nemění. Každý jeho krok jde v Aktivitě AI vrátit.",
   "Task lists, folders and repeating tasks": "Seznamy úkolů, složky a opakované úkoly",
   "Sort tasks into your own lists, put lists into folders, and start a name with an emoji to use it as the icon. A task can repeat every day, week, weekday, month or year: tick it off and it moves to its next day. Coming from TickTick? Import its backup and your lists and tasks come over. The switch next to Kolbaba's name now shows how much waits in each: unread mail, events left today and tasks for today.":
     "Roztřiď si úkoly do vlastních seznamů, seznamy dej do složek a když název začneš emoji, bude to jeho ikona. Úkol se může opakovat každý den, týden, pracovní den, měsíc nebo rok: odškrtneš ho a přesune se na další termín. Přecházíš z TickTicku? Naimportuj jeho zálohu a seznamy i úkoly se přenesou. Přepínač vedle názvu Kolbaba teď u každé části ukazuje, kolik tam čeká: nepřečtené maily, dnešní zbývající události a úkoly na dnešek.",

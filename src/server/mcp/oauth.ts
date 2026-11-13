@@ -201,17 +201,17 @@ export function verifyConsentToken(token: string | null, userId: string, p: Auth
 }
 
 /** The user said yes: create or update the grant and hand out a one-time code. */
-/** `calendar`: whether the agent may use the calendar; left out, a new agent starts without it and a known one keeps what it had. */
-export async function approve(userId: string, client: ClientRow, p: AuthorizeParams, permission: AgentPermission, accountIds: string[] = [], calendar?: boolean) {
+/** `calendar`, `tasks`: whether the agent may use them; left out, a new agent starts without and a known one keeps what it had. */
+export async function approve(userId: string, client: ClientRow, p: AuthorizeParams, permission: AgentPermission, accountIds: string[] = [], calendar?: boolean, tasks?: boolean) {
   // An impostor of a known app is stored under the name it gave, never as that app.
   const { name, app, logo } = identityFromRegistration(client);
   const [agent] = await db()
     .insert(schema.agents)
-    .values({ userId, clientId: client.id, name, app, logo, permission, accountIds, enabled: true, ...(calendar === undefined ? {} : { calendar }) })
+    .values({ userId, clientId: client.id, name, app, logo, permission, accountIds, enabled: true, ...(calendar === undefined ? {} : { calendar }), ...(tasks === undefined ? {} : { tasks }) })
     .onConflictDoUpdate({
       target: [schema.agents.userId, schema.agents.clientId],
       // Keep a name refined from MCP clientInfo; only the grant itself changes.
-      set: { permission, accountIds, enabled: true, ...(calendar === undefined ? {} : { calendar }) },
+      set: { permission, accountIds, enabled: true, ...(calendar === undefined ? {} : { calendar }), ...(tasks === undefined ? {} : { tasks }) },
     })
     .returning();
 

@@ -32,6 +32,12 @@ shows up in the app, with Undo where the step can be undone.
 - Events you make or change are saved to the calendar they belong to, repeating ones too. Guests get an invitation by email; a notification reminds you before an event starts.
 - Drag an event to another time or day, search events by title, place, notes or guest, answer invitations, and give one event its own reminder time.
 
+**Tasks**
+
+- A to-do list next to mail and calendar: Today, Next 7 days, an Inbox, your own lists and folders, Completed and Trash.
+- Add a task in one line ("Call the plumber tomorrow 9:00 !high" sets its day, time and priority), give it a description in the email editor, and make it repeat daily, weekly, on weekdays, monthly or yearly.
+- Drag tasks to another day, list or priority, and import a TickTick backup.
+
 **Inbox**
 
 - Archive, snooze, pin, mute, trash, spam, and "My history" to undo your own actions for 30 days.
@@ -71,11 +77,12 @@ connect an agent, you choose which mailboxes it sees and one of three access lev
 | **Organize & draft** | the above, plus `create_draft`, `update_draft`, `delete_draft`, `archive`, `move_to_inbox`, `mark_read`, `mark_unread`, `pin`, `unpin`, `trash`, `move_to_folder`, `snooze`, `remind_if_no_reply`, `set_note`, `screen_sender` |
 | **Full access** | the above, plus `send` and `unsubscribe` |
 
+- The calendar and the tasks are shared with an agent apart from the mailboxes. With them, it also gets `list_calendars`, `list_events`, `create_event`, `update_event`, `delete_event` (inviting guests needs Full access) and `list_task_lists`, `list_tasks`, `create_task`, `update_task`, `delete_task`; Read only lets it look, not change.
 - Every call shows up under AI activity in the app, with Undo where the step can be undone. You can pause or remove an agent at any time.
 - Agents get email content marked as untrusted third-party text, not instructions.
 - Sending waits at least 30 seconds, so you can stop it, and agents are limited to 20 emails and 100 recipients an hour.
 
-The tools are defined in [`src/server/mcp/tools.ts`](src/server/mcp/tools.ts).
+The tools are defined in [`src/server/mcp/tools.ts`](src/server/mcp/tools.ts), [`calendar-tools.ts`](src/server/mcp/calendar-tools.ts) and [`task-tools.ts`](src/server/mcp/task-tools.ts).
 
 ## How it works
 

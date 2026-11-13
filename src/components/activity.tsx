@@ -4,6 +4,7 @@ import {
   Archive,
   CalendarClock,
   CalendarDays,
+  CircleCheckBig,
   Check,
   ChevronDown,
   Clock,
@@ -493,15 +494,35 @@ export function AgentRow({ agent, now }: { agent: Agent; now: number }) {
  * The mailboxes one agent may see, as chips to tap on and off. Each agent has its own: Claude can
  * have work mail while ChatGPT only sees the personal one.
  */
-/** Let an agent use the calendar, or stop it. Takes effect on its very next tool call. */
-function setAgentCalendar(agent: Agent, calendar: boolean) {
-  const put = (value: boolean) => useMail.setState((s) => ({ agents: s.agents.map((a) => (a.id === agent.id ? { ...a, calendar: value } : a)) }));
-  put(calendar);
+/** Let an agent use the calendar or the tasks, or stop it. Takes effect on its very next tool call. */
+function setAgentShare(agent: Agent, what: "calendar" | "tasks", on: boolean) {
+  const put = (value: boolean) => useMail.setState((s) => ({ agents: s.agents.map((a) => (a.id === agent.id ? { ...a, [what]: value } : a)) }));
+  put(on);
   if (!LIVE) return;
-  api.patch(`/api/agents/${agent.id}`, { calendar }).catch((err: Error) => {
-    put(!calendar);
+  api.patch(`/api/agents/${agent.id}`, { [what]: on }).catch((err: Error) => {
+    put(!on);
     useMail.getState().pushToast({ message: err.message });
   });
+}
+
+/** The calendar or the tasks as a chip beside the mailboxes: shared with this agent or not. */
+function ShareChip({ agent, what }: { agent: Agent; what: "calendar" | "tasks" }) {
+  const on = !!agent[what];
+  const Icon = what === "calendar" ? CalendarDays : CircleCheckBig;
+  return (
+    <button
+      aria-pressed={on}
+      onClick={() => setAgentShare(agent, what, !on)}
+      className={cn(
+        "press flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors [--press-scale:0.95]",
+        on ? "bg-accent-soft text-accent-text" : "text-ink-3 shadow-[inset_0_0_0_0.5px_var(--line)] hover:bg-hover hover:text-ink-2",
+      )}
+    >
+      <Icon size={13} className="shrink-0" />
+      <span className="truncate">{what === "calendar" ? t("Calendar") : t("Tasks")}</span>
+      {on && <Check size={12} className="shrink-0" />}
+    </button>
+  );
 }
 
 export function AgentMailboxes({ agent }: { agent: Agent }) {
@@ -532,19 +553,9 @@ export function AgentMailboxes({ agent }: { agent: Agent }) {
       {!agent.accountIds.some((id) => accounts.some((a) => a.id === id)) && (
         <span className="flex h-7 items-center text-[12px] text-ink-3">{t("Sees no mailbox yet")}</span>
       )}
-      {/* The calendar is shared apart from the mailboxes: reading it, and changing it as far as the access level goes. */}
-      <button
-        aria-pressed={!!agent.calendar}
-        onClick={() => setAgentCalendar(agent, !agent.calendar)}
-        className={cn(
-          "press flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors [--press-scale:0.95]",
-          agent.calendar ? "bg-accent-soft text-accent-text" : "text-ink-3 shadow-[inset_0_0_0_0.5px_var(--line)] hover:bg-hover hover:text-ink-2",
-        )}
-      >
-        <CalendarDays size={13} className="shrink-0" />
-        <span className="truncate">{t("Calendar")}</span>
-        {agent.calendar && <Check size={12} className="shrink-0" />}
-      </button>
+      {/* The calendar and the tasks are shared apart from the mailboxes: reading them, and changing them as far as the access level goes. */}
+      <ShareChip agent={agent} what="calendar" />
+      <ShareChip agent={agent} what="tasks" />
     </div>
   );
 }

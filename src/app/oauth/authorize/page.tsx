@@ -76,7 +76,7 @@ async function Consent({ searchParams }: { searchParams: PageProps<"/oauth/autho
       .where(eq(schema.accounts.userId, user.id))
       .orderBy(schema.accounts.sortOrder, schema.accounts.createdAt),
     db()
-      .select({ permission: schema.agents.permission, accountIds: schema.agents.accountIds, calendar: schema.agents.calendar })
+      .select({ permission: schema.agents.permission, accountIds: schema.agents.accountIds, calendar: schema.agents.calendar, tasks: schema.agents.tasks })
       .from(schema.agents)
       .where(and(eq(schema.agents.userId, user.id), eq(schema.agents.clientId, client.id))),
     db()
@@ -115,6 +115,8 @@ async function Consent({ searchParams }: { searchParams: PageProps<"/oauth/autho
       }))}
       // Only someone who has a calendar here is asked about it. The same rule as the mailboxes for what starts ticked.
       calendar={hasCalendar ? (existing ? existing.calendar : identity.verified) : null}
+      // Tasks need no setup, so everyone is asked; what starts ticked follows the same rule.
+      tasks={existing ? existing.tasks : identity.verified}
       hidden={hidden}
     />
   );

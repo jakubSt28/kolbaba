@@ -90,5 +90,17 @@ export function describeStep(step: AgentStep, { t: tr, tn, when, folder }: StepF
       return tr(tk("Changed **{title}** in the calendar ({when})"), { title: clean(step.title) || tr("(No title)"), when: when(step.at) });
     case "event_deleted":
       return tr(tk("Deleted **{title}** from the calendar ({when})"), { title: clean(step.title) || tr("(No title)"), when: when(step.at) });
+    case "task_lists":
+      return tr(tk("Looked up **task lists**"));
+    case "tasks_listed":
+      return tr(tk("Looked at **tasks**"));
+    case "task_created":
+      return tr(tk("Added the task **{title}**"), { title: clean(step.title) || tr("(No title)") });
+    case "task_updated":
+      return step.done
+        ? tr(tk("Ticked off the task **{title}**"), { title: clean(step.title) || tr("(No title)") })
+        : tr(tk("Changed the task **{title}**"), { title: clean(step.title) || tr("(No title)") });
+    case "task_deleted":
+      return tr(tk("Moved the task **{title}** to Trash"), { title: clean(step.title) || tr("(No title)") });
   }
 }

@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-13-agent-tasks",
+    date: "2026-11-13",
+    icon: "agents",
+    title: tk("Your AI agent can work with your tasks"),
+    body: tk("Share your tasks with an agent like Claude or ChatGPT, and it can read your lists, add a task from an email, change its day or priority, tick it off or move it to Trash. Turn it on when you connect the agent, or later in AI activity → Manage. Read only lets it look without changing anything, and every step can be undone in AI activity."),
+    action: "agents",
+  },
+  {
     id: "2026-11-13-task-lists",
     date: "2026-11-13",
     icon: "tasks",

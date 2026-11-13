@@ -138,6 +138,19 @@ export const tasks: Dictionary = {
   "Making a task repeat": "Nastavení opakování úkolu",
   "Importing from TickTick": "Import z TickTicku",
 
+  // Agents (MCP)
+  "See your tasks and lists.": "Vidí tvoje úkoly a seznamy.",
+  "See, add, change, tick off and delete your tasks.": "Vidí, přidává, mění, odškrtává a maže tvoje úkoly.",
+  "Calendar and tasks": "Kalendář a úkoly",
+  "Your tasks": "Tvoje úkoly",
+  "Looked up **task lists**": "Prohlédl **seznamy úkolů**",
+  "Looked at **tasks**": "Prohlédl **úkoly**",
+  "Added the task **{title}**": "Přidal úkol **{title}**",
+  "Ticked off the task **{title}**": "Odškrtl úkol **{title}**",
+  "Changed the task **{title}**": "Změnil úkol **{title}**",
+  "Moved the task **{title}** to Trash": "Přesunul úkol **{title}** do koše",
+  "That task is gone": "Ten úkol už neexistuje",
+
   // The server
   "That title is a little long": "Ten název je trochu dlouhý",
   "A time needs a day": "Čas potřebuje datum",

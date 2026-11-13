@@ -2,6 +2,7 @@ import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import type { Agent, AgentAction as ClientAction, AgentEvent, AgentSession, AgentStep, Draft } from "@/lib/types";
 import type { EditScope, EventInput as CalendarEventInput } from "@/lib/calendar/types";
 import { createEvent, deleteEvent, updateEvent } from "../calendar/service";
+import { deleteTask, updateTask } from "../tasks";
 import { db, schema } from "../db";
 import type { AgentAction, ThreadFolder } from "../db/schema";
 import { HttpError } from "../http-error";
@@ -41,6 +42,9 @@ const GENERIC_TITLES: Record<AgentAction, string> = {
   event_create: "Calendar",
   event_update: "Calendar",
   event_delete: "Calendar",
+  task_create: "Tasks",
+  task_update: "Tasks",
+  task_delete: "Tasks",
 };
 const GENERIC = new Set(Object.values(GENERIC_TITLES));
 
@@ -115,7 +119,23 @@ export type UndoData =
   /** Calendar: an event the agent made (Undo deletes it), changed (Undo puts the old one back) or deleted (Undo makes it again). */
   | { kind: "event_created"; eventId: string }
   | { kind: "event_updated"; eventId: string; previous: CalendarEventInput; scope: EditScope }
-  | { kind: "event_deleted"; event: CalendarEventInput };
+  | { kind: "event_deleted"; event: CalendarEventInput }
+  /** Tasks: one the agent made (Undo deletes it), changed (Undo puts the fields back, and takes away the done copy of a repeating one) or sent to Trash (Undo brings it back). */
+  | { kind: "task_created"; taskId: string }
+  | { kind: "task_updated"; taskId: string; previous: TaskSnapshot; doneId?: string }
+  | { kind: "task_deleted"; taskId: string };
+
+/** What update_task can change, as it was before. */
+export interface TaskSnapshot {
+  title: string;
+  notes: string;
+  priority: 0 | 1 | 2 | 3;
+  due: string | null;
+  time: string | null;
+  listId: string | null;
+  repeat: string | null;
+  completed: boolean;
+}
 
 export async function logEvent(ctx: RunContext, intent: string | null | undefined, e: EventInput) {
   const now = new Date();
@@ -153,6 +173,7 @@ export function agentDto(a: AgentRow): Agent {
     permission: a.permission,
     accountIds: a.accountIds,
     calendar: a.calendar,
+    tasks: a.tasks,
     enabled: a.enabled,
     lastActiveAt: (a.lastActiveAt ?? a.createdAt).getTime(),
   };
@@ -181,6 +202,9 @@ const CLIENT_ACTION: Record<AgentAction, ClientAction> = {
   event_create: "schedule",
   event_update: "schedule",
   event_delete: "trash",
+  task_create: "schedule",
+  task_update: "schedule",
+  task_delete: "trash",
 };
 
 function eventDto(e: EventRow, pendingOutbox: Set<string>): AgentEvent {
@@ -324,6 +348,24 @@ async function reverse(userId: string, row: EventRow, undo: UndoData): Promise<U
       return;
     case "event_deleted":
       await createEvent(userId, undo.event);
+      return;
+    case "task_created":
+      await deleteTask(userId, undo.taskId);
+      return;
+    case "task_updated": {
+      if (undo.doneId) await deleteTask(userId, undo.doneId);
+      const { completed, ...fields } = undo.previous;
+      await updateTask(userId, undo.taskId, { ...fields, completed }).catch((err) => {
+        if (err instanceof HttpError && err.status === 404) throw new HttpError(409, "That task is gone", "gone");
+        throw err;
+      });
+      return;
+    }
+    case "task_deleted":
+      await updateTask(userId, undo.taskId, { deleted: false }).catch((err) => {
+        if (err instanceof HttpError && err.status === 404) throw new HttpError(409, "That task is gone", "gone");
+        throw err;
+      });
       return;
   }
 }
