@@ -19,15 +19,15 @@ import { EventEditorHost } from "./event-editor";
 import { MonthView } from "./month-view";
 import { TimeGrid } from "./time-grid";
 
-/** The days and events on screen, kept loaded and fresh. `columns` is how many days "week" shows (7, or 3 on a phone). */
-function useCalendarView(columns: number) {
+/** The days and events on screen, kept loaded and fresh. */
+function useCalendarView() {
   const view = useCalendar((s) => s.view);
   const anchor = useCalendar((s) => s.anchor);
   const ready = useCalendar((s) => s.ready);
   const events = useCalendar((s) => s.events);
   const calendars = useCalendar((s) => s.calendars);
   const mode = useCalendar((s) => s.mode);
-  const days = useMemo(() => visibleDays(view, new Date(anchor), columns), [view, anchor, columns]);
+  const days = useMemo(() => visibleDays(view, new Date(anchor)), [view, anchor]);
   const shown = useMemo(() => visibleEvents(events, calendars), [events, calendars]);
   const count = calendars.length;
 
@@ -74,7 +74,7 @@ function useCalendarShortcuts(enabled: boolean) {
       if (mod || e.altKey || mail.paletteOpen || mail.settingsOpen || mail.shortcutsOpen || isTypingTarget(e.target)) return;
       // Search is in place of the days: the keys that move through them wait.
       if (s.search) return e.key === "Escape" ? s.closeSearch() : undefined;
-      const views: Record<string, CalendarView> = { d: "day", w: "week", m: "month" };
+      const views: Record<string, CalendarView> = { d: "day", "3": "days", w: "week", m: "month" };
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (key === "Escape") s.closeEvent();
       else if (key === "t") s.goToday();
@@ -97,7 +97,7 @@ function useCalendarShortcuts(enabled: boolean) {
 
 /** The calendar in the big pane (the sidebar holds the small month and the list of calendars). */
 export function CalendarMain() {
-  const { view, anchor, days, events, calendars, ready } = useCalendarView(7);
+  const { view, anchor, days, events, calendars, ready } = useCalendarView();
   const syncing = useCalendar((s) => s.syncing);
   const { step, goToday, setView, refresh, openSearch } = useCalendar.getState();
   const mode = useCalendar((s) => s.mode);
@@ -113,12 +113,12 @@ export function CalendarMain() {
       <header className="flex h-14 shrink-0 items-center gap-2 pr-3 pl-5">
         <h1 className="min-w-0 truncate text-[19px] font-semibold tracking-[-0.02em] first-letter:uppercase">{formatTitle(view, days, new Date(anchor))}</h1>
         <div className="ml-2 flex shrink-0 items-center">
-          <Tooltip label={view === "month" ? t("Previous month") : view === "week" ? t("Previous week") : t("Previous day")} shortcut="K" side="bottom">
+          <Tooltip label={view === "month" ? t("Previous month") : view === "week" ? t("Previous week") : view === "days" ? t("Previous 3 days") : t("Previous day")} shortcut="K" side="bottom">
             <button onClick={() => step(-1)} aria-label={t("Previous")} className="flex size-8 items-center justify-center rounded-[9px] text-ink-2 transition-colors hover:bg-hover hover:text-ink">
               <ChevronLeft size={17} />
             </button>
           </Tooltip>
-          <Tooltip label={view === "month" ? t("Next month") : view === "week" ? t("Next week") : t("Next day")} shortcut="J" side="bottom">
+          <Tooltip label={view === "month" ? t("Next month") : view === "week" ? t("Next week") : view === "days" ? t("Next 3 days") : t("Next day")} shortcut="J" side="bottom">
             <button onClick={() => step(1)} aria-label={t("Next")} className="flex size-8 items-center justify-center rounded-[9px] text-ink-2 transition-colors hover:bg-hover hover:text-ink">
               <ChevronRight size={17} />
             </button>
@@ -152,6 +152,7 @@ export function CalendarMain() {
           onChange={setView}
           options={[
             { value: "day", label: t("Day") },
+            { value: "days", label: t("3 days") },
             { value: "week", label: t("Week") },
             { value: "month", label: t("Month") },
           ]}
@@ -194,9 +195,9 @@ function FirstRun({ mobile }: { mobile?: boolean }) {
 
 /* ----------------------------------- Phone ---------------------------------- */
 
-/** The calendar on a phone: one day, three days or the month, a swipe sideways to move, the drawer for the calendars. */
+/** The calendar on a phone: a day, three days, the week or the month, a swipe sideways to move, the drawer for the calendars. */
 export function MobileCalendar() {
-  const { view, anchor, days, events, calendars, ready } = useCalendarView(3);
+  const { view, anchor, days, events, calendars, ready } = useCalendarView();
   const { step, goToday, setView, newEvent, openSearch } = useCalendar.getState();
   const searching = useCalendar((s) => !!s.search);
   const setDrawerOpen = useMail((s) => s.setDrawerOpen);
@@ -233,7 +234,8 @@ export function MobileCalendar() {
             onChange={setView}
             options={[
               { value: "day", label: t("Day") },
-              { value: "week", label: t("3 days") },
+              { value: "days", label: t("3 days") },
+              { value: "week", label: t("Week") },
               { value: "month", label: t("Month") },
             ]}
           />
@@ -249,7 +251,7 @@ export function MobileCalendar() {
           const dx = e.changedTouches[0].clientX - from.x;
           const dy = e.changedTouches[0].clientY - from.y;
           // Clearly sideways: the next or previous days. Anything else is scrolling the hours.
-          if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) step(dx < 0 ? 1 : -1, 3);
+          if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) step(dx < 0 ? 1 : -1);
         }}
       >
         {empty ? (

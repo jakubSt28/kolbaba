@@ -93,7 +93,8 @@ export interface EventInput {
 /** A change to a repeating event applies to this occurrence only, or to the whole series. */
 export type EditScope = "this" | "all";
 
-export type CalendarView = "month" | "week" | "day";
+/** "days" is three days from the one in view: what fits a phone, and a closer look on a computer. */
+export type CalendarView = "month" | "week" | "days" | "day";
 
 /** Minutes before an event the reminder comes; null turns reminders off. */
 export const REMINDER_CHOICES = [0, 5, 10, 15, 30, 60] as const;

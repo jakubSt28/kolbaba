@@ -56,6 +56,8 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
   const long = useMemo(() => layoutBars(events.filter(spansDays), days), [events, days]);
   const lines = Math.max(0, ...long.map((b) => b.line + 1));
   const gutter = compact ? "w-11" : "w-14";
+  // A whole week on a phone: columns too narrow for a title on one line, so titles wrap in smaller type.
+  const narrow = !!compact && days.length > 3;
 
   // Open on the working day: a little above now when today is on screen, else the morning.
   useLayoutEffect(() => {
@@ -198,7 +200,8 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
                   onPointerDown={(e) => dragByDay(bar.event, e, stripDay, (d) => setDrag(d && { ...d, kind: "day" }), drop)}
                   onClick={(e) => open(bar.event, e.currentTarget)}
                   className={cn(
-                    "cal-bar absolute flex h-[21px] items-center truncate px-2 text-left text-[12px] font-medium transition-colors",
+                    "cal-bar absolute flex h-[21px] items-center truncate text-left font-medium transition-colors",
+                    narrow ? "px-1.5 text-[11px]" : "px-2 text-[12px]",
                     bar.fromBefore ? "rounded-l-none" : "rounded-l-[6px]",
                     bar.toAfter ? "rounded-r-none" : "rounded-r-[6px]",
                     bar.event.myStatus === "declined" && "line-through opacity-60",
@@ -234,7 +237,7 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
               <div key={h} className="pointer-events-none absolute inset-x-0 h-px bg-line" style={{ top: h * HOUR }} />
             ))}
             {days.map((day) => (
-              <DayColumn key={day.getTime()} day={day} events={events} hueOf={hueOf} now={now} openId={openId} compact={compact} moving={drag && drag.kind !== "day" ? drag : null} grab={grab} open={open} />
+              <DayColumn key={day.getTime()} day={day} events={events} hueOf={hueOf} now={now} openId={openId} compact={compact} narrow={narrow} moving={drag && drag.kind !== "day" ? drag : null} grab={grab} open={open} />
             ))}
           </div>
         </div>
@@ -250,6 +253,7 @@ function DayColumn({
   now,
   openId,
   compact,
+  narrow,
   moving,
   grab,
   open,
@@ -260,6 +264,7 @@ function DayColumn({
   now: Date;
   openId?: string;
   compact?: boolean;
+  narrow?: boolean;
   /** An event being dragged: its part that would land on this day is drawn in its new place. */
   moving: Drag | null;
   grab: Grab;
@@ -343,7 +348,7 @@ function DayColumn({
         </div>
       )}
       {/* Room on the right stays free, so there's always somewhere to click for a new event. */}
-      <div className={cn("pointer-events-none absolute inset-y-0 left-0", compact ? "right-1" : "right-2.5")}>
+      <div className={cn("pointer-events-none absolute inset-y-0 left-0", narrow ? "right-0.5" : compact ? "right-1" : "right-2.5")}>
         {boxes.map((box) => (
           <EventBox
             key={box.event.id}
@@ -352,6 +357,7 @@ function DayColumn({
             over={eventSpan(box.event).end < now}
             open={openId === box.event.id}
             compact={compact}
+            narrow={narrow}
             lifted={moving?.event.id === box.event.id}
             grab={grab}
             onOpen={open}
@@ -385,6 +391,7 @@ function EventBox({
   over,
   open,
   compact,
+  narrow,
   lifted,
   grab,
   onOpen,
@@ -394,6 +401,7 @@ function EventBox({
   over: boolean;
   open: boolean;
   compact?: boolean;
+  narrow?: boolean;
   /** It's being dragged: it fades where it was. */
   lifted: boolean;
   grab: Grab;
@@ -421,7 +429,7 @@ function EventBox({
         box.fromBefore && "rounded-t-none",
         box.toAfter && "rounded-b-none",
         // A button centres what's in it; a tall event reads from its top.
-        tall ? "flex flex-col justify-start py-1" : "flex items-center",
+        narrow ? "flex flex-col justify-start pt-0.5 pr-0.5 pl-[6px]" : tall ? "flex flex-col justify-start py-1" : "flex items-center",
       )}
       style={{
         ...hueStyle(hue),
@@ -431,18 +439,25 @@ function EventBox({
         width: `calc(${100 / box.columns}% - 3px)`,
       }}
     >
-      <span className={cn("block truncate text-[12px] leading-[15px] font-medium", e.myStatus === "declined" && "line-through", compact && "text-[11.5px]")}>
+      <span
+        className={cn(
+          "block text-[12px] leading-[15px] font-medium",
+          narrow ? "text-[10.5px] leading-[12.5px] hyphens-auto" : "truncate",
+          e.myStatus === "declined" && "line-through",
+          compact && !narrow && "text-[11.5px]",
+        )}
+      >
         {e.title || t("(No title)")}
         {!tall && !compact && <span className="font-normal opacity-70"> · {formatTime(start)}</span>}
       </span>
-      {tall && (
+      {tall && !narrow && (
         <span className="mt-px flex items-center gap-1 truncate text-[11px] leading-[14px] opacity-75">
           <span className="truncate">{compact ? formatTime(start) : time}</span>
           {e.recurring && <Repeat size={10} className="shrink-0" />}
           {e.joinUrl && <Video size={11} className="shrink-0" />}
         </span>
       )}
-      {height >= 62 && e.location && <span className="block truncate text-[11px] leading-[14px] opacity-65">{e.location}</span>}
+      {height >= 62 && !narrow && e.location && <span className="block truncate text-[11px] leading-[14px] opacity-65">{e.location}</span>}
       {/* The lower edge: drag it to change when the event ends. */}
       {e.canEdit && !box.toAfter && !compact && (
         <span

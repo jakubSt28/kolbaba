@@ -84,7 +84,7 @@ interface CalendarState {
   /** Ask the providers again now ("Refresh", coming back to the app). */
   refresh: (force?: boolean) => Promise<void>;
   setView: (view: CalendarView) => void;
-  step: (delta: number, days?: number) => void;
+  step: (delta: number) => void;
   goTo: (day: Date, view?: CalendarView) => void;
   goToday: () => void;
   showEvent: (id: string, rect: Rect) => void;
@@ -364,7 +364,7 @@ export const useCalendar = create<CalendarState>()((set, get) => {
       set({ view, openEvent: null });
       saveSettings({ view });
     },
-    step: (delta, days) => set((s) => ({ anchor: stepAnchor(s.view, new Date(s.anchor), delta, days).getTime(), openEvent: null })),
+    step: (delta) => set((s) => ({ anchor: stepAnchor(s.view, new Date(s.anchor), delta).getTime(), openEvent: null })),
     goTo: (day, view) => {
       if (view && view !== get().view) get().setView(view);
       set({ anchor: startOfDay(day).getTime(), openEvent: null });

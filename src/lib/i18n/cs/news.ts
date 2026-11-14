@@ -12,6 +12,8 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "The whole week in the calendar on your phone": "Celý týden v kalendáři i na telefonu",
+  "The calendar on the phone now shows a day, three days, the whole week or the month. Three days are on the computer too, next to Day, Week and Month.": "Kalendář na telefonu teď ukáže den, tři dny, celý týden nebo měsíc. Tři dny jsou i na počítači, vedle dne, týdne a měsíce.",
   "Mail, calendar and tasks one tap apart on the phone": "Na telefonu přepneš mezi poštou, kalendářem a úkoly jedním klepnutím",
   "On the phone, the Mail | Calendar | Tasks switch now sits at the top of the screen, next to the mailbox picker, with how much waits in each. In the task list, tap a task's date to change it right there, without opening the task.":
     "Na telefonu je přepínač Pošta | Kalendář | Úkoly nahoře na obrazovce vedle výběru schránky a ukazuje, kolik v čem čeká. V seznamu úkolů klepni na datum úkolu a změníš ho rovnou tam, bez otevírání úkolu.",

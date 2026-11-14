@@ -68,7 +68,7 @@ const GROUPS: { title: string; keys: [string[], string][] }[] = [
       [["C"], tk("New event")],
       [["T"], tk("Go to today")],
       [["J", "K"], tk("Next / previous")],
-      [["D", "W", "M"], tk("Day, week, month")],
+      [["D", "3", "W", "M"], tk("Day, 3 days, week, month")],
       [["/"], tk("Search events")],
       [["R"], tk("Refresh")],
     ],

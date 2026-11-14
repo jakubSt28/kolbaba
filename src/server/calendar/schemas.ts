@@ -63,7 +63,7 @@ export const SourceBody = z.discriminatedUnion("kind", [
 export const ImportBody = z.object({ calendarId: z.string().max(64).optional(), name: z.string().max(160).optional(), text: z.string().min(1).max(3_000_000) });
 
 export const SettingsBody = z.object({
-  view: z.enum(["month", "week", "day"]).optional(),
+  view: z.enum(["month", "week", "days", "day"]).optional(),
   reminder: z.union([z.literal(REMINDER_CHOICES[0]), ...REMINDER_CHOICES.slice(1).map((n) => z.literal(n))]).nullable().optional(),
   skipped: z.array(z.string().max(64)).max(100).optional(),
   timeZone: z.string().max(64).optional(),

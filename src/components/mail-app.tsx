@@ -2,7 +2,7 @@
 
 import { MotionConfig } from "motion/react";
 import { Tooltip } from "radix-ui";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { watchForUpdates } from "@/lib/app-update";
 import { watchForCodes } from "@/lib/codes";
 import { getLocale, resolveLocale, setLocale, t } from "@/lib/i18n";
@@ -29,6 +29,7 @@ import { NewsHost } from "./news";
 import { CollectionHost } from "./collection";
 import { Sidebar } from "./sidebar";
 import { Toaster } from "./toaster";
+import { useMedia } from "./ui";
 import { WelcomeHost } from "./welcome";
 import { ImagesExplainerHost } from "./images-explainer";
 import { openCalendarLink, restoreMode, useCalendar } from "@/lib/calendar/store";
@@ -39,18 +40,6 @@ import { MobileTasks, TasksDetailsPane, TasksMain } from "./tasks/tasks-app";
 /** No click, key, wheel, touch or mouse movement for this long: nobody's looking, so the minute's refresh rests. */
 const IDLE_AFTER_MS = 5 * 60_000;
 const ACTIVITY = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
-
-function useMedia(query: string) {
-  return useSyncExternalStore(
-    (cb) => {
-      const mql = window.matchMedia(query);
-      mql.addEventListener("change", cb);
-      return () => mql.removeEventListener("change", cb);
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
-}
 
 /**
  * Links into the app: notifications open `/?thread=…`, `/?activity` (an agent's action), `/?settings` or

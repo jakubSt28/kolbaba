@@ -9,7 +9,7 @@ import { ownFolderId, useMail } from "@/lib/store";
 import type { MailFolder } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { confirmAction } from "./confirm";
-import { Tooltip, hueStyle, menuContentClass, menuItemClass, subTriggerClass } from "./ui";
+import { MenuSub, Tooltip, hueStyle, menuContentClass, menuItemClass, subTriggerClass } from "./ui";
 
 /** The colours a folder can have (the same set new folders get theirs from). */
 export const FOLDER_HUES = [262, 160, 28, 205, 330, 95, 0, 50, 290, 130, 230, 15];
@@ -182,16 +182,16 @@ function FolderItems({ ids, Item }: { ids: string[]; Item: typeof DropdownMenu.I
 /** "Move to…" inside a dropdown (the reader's More menu). */
 export function MoveToFolderSub({ ids }: { ids: string[] }) {
   return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className={subTriggerClass}>
-        <FolderInput size={14} /> <span className="flex-1">{t("Move to folder")}</span> <ChevronRight size={14} className="opacity-60" />
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent sideOffset={6} collisionPadding={8} className={cn(menuContentClass, "max-h-[60vh] overflow-y-auto")}>
-          <FolderItems ids={ids} Item={DropdownMenu.Item} />
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
+    <MenuSub
+      className="max-h-[60vh] overflow-y-auto"
+      trigger={
+        <>
+          <FolderInput size={14} /> <span className="flex-1">{t("Move to folder")}</span>
+        </>
+      }
+    >
+      <FolderItems ids={ids} Item={DropdownMenu.Item} />
+    </MenuSub>
   );
 }
 

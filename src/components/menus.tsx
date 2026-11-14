@@ -1,13 +1,13 @@
 "use client";
 
-import { BellOff, BellRing, CalendarDays, ChevronRight, Clock, Coffee, Moon, Sun, Sunrise } from "lucide-react";
+import { BellOff, BellRing, CalendarDays, Clock, Coffee, Moon, Sun, Sunrise } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useState, type ReactElement } from "react";
 import { t } from "@/lib/i18n";
 import { keepTypingMenu } from "@/lib/keyboard";
 import { at, formatFuture, nextWeekday, snoozePresets } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
-import { Tooltip, menuContentClass, menuItemClass, subTriggerClass } from "./ui";
+import { MenuSub, Tooltip, menuContentClass, menuItemClass } from "./ui";
 
 const PRESET_ICONS = { later: Coffee, tomorrow: Sunrise, weekend: Sun, "next-week": CalendarDays } as const;
 
@@ -173,16 +173,14 @@ export function RemindMenu({ onPick, current, children, side = "bottom", align =
 /** The same inside another menu (the reader's More). */
 export function RemindSub({ onPick, current }: { onPick: (ts: number | null) => void; current?: number }) {
   return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className={subTriggerClass}>
-        <BellRing size={14} /> <span className="flex-1">{current ? t("Reminder · {time}", { time: formatFuture(current) }) : t("Remind me if no reply")}</span>
-        <ChevronRight size={14} className="opacity-60" />
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent sideOffset={6} collisionPadding={8} className={menuContentClass}>
-          <RemindItems onPick={onPick} current={current} Item={DropdownMenu.Item} />
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
+    <MenuSub
+      trigger={
+        <>
+          <BellRing size={14} /> <span className="flex-1">{current ? t("Reminder · {time}", { time: formatFuture(current) }) : t("Remind me if no reply")}</span>
+        </>
+      }
+    >
+      <RemindItems onPick={onPick} current={current} Item={DropdownMenu.Item} />
+    </MenuSub>
   );
 }

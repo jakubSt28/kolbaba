@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-14-calendar-week",
+    date: "2026-11-14",
+    icon: "calendar",
+    title: tk("The whole week in the calendar on your phone"),
+    body: tk("The calendar on the phone now shows a day, three days, the whole week or the month. Three days are on the computer too, next to Day, Week and Month."),
+    action: "calendar",
+  },
+  {
     id: "2026-11-13-phone-switch",
     date: "2026-11-13",
     icon: "tasks",

@@ -15,7 +15,7 @@ import {
   StickyNote,
   CalendarClock,
   Check,
-  ChevronRight,
+  ChevronDown,
   Copy,
   Download,
   ExternalLink,
@@ -78,7 +78,7 @@ import { isFreeMail } from "@/lib/mail-domains";
 import { addressInName, splitAddress } from "@/lib/phishing";
 import { MoveToFolderSub } from "./folders";
 import { askDeleteForever, canDeleteForever } from "./thread-actions";
-import { Avatar, IconButton, Kbd, MailboxBadge, Tooltip, menuContentClass, menuItemClass, subTriggerClass, spring } from "./ui";
+import { Avatar, IconButton, Kbd, MailboxBadge, MenuSub, Tooltip, menuContentClass, menuItemClass, spring } from "./ui";
 
 export function Reader() {
   // Opening the next email (after an archive, J/K) is the heaviest render in the app. Deferred, the list
@@ -712,7 +712,7 @@ function MessageView({ message, thread, framed, onCollapse }: { message: Message
           </div>
           {/* Someone you never wrote to: the whole address, phone included, with the domain where a fake shows. */}
           {message.stranger && !mine.has(message.from.email) && <SenderAddress email={message.from.email} />}
-          <div className="truncate text-[12.5px] text-ink-3">{t("to {recipients}", { recipients: recipients.join(", ") })}</div>
+          <MessageDetails message={message} thread={thread} label={t("to {recipients}", { recipients: recipients.join(", ") })} />
         </div>
         <Tooltip label={formatFullTime(message.date)} side="top">
           <span className="shrink-0 pt-0.5 text-[12px] text-ink-3">{formatListTime(message.date)}</span>
@@ -742,6 +742,76 @@ function MessageView({ message, thread, framed, onCollapse }: { message: Message
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * "to me, Petra": opens who it was from and to with their whole addresses, which of your addresses it
+ * came to, and the mailbox it's in (with several mailboxes, or a forward, "me" alone doesn't say).
+ */
+function MessageDetails({ message, thread, label }: { message: Message; thread: Thread; label: string }) {
+  const accounts = useMail((s) => s.accounts);
+  const account = accounts.find((a) => a.id === thread.accountId);
+  const mine = new Set(accounts.map((a) => a.email.toLowerCase()));
+  const rows: { label: string; people: Message["to"] }[] = [
+    { label: t("From"), people: [message.from] },
+    { label: t("To"), people: message.to },
+    ...(message.cc?.length ? [{ label: t("Cc"), people: message.cc }] : []),
+  ];
+  return (
+    // The popover is portalled, but its clicks still bubble through React to the header, which folds the message.
+    <span className="flex min-w-0" onClick={(e) => e.stopPropagation()}>
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button className="-ml-1 flex min-w-0 items-center gap-0.5 rounded-[6px] px-1 text-left text-[12.5px] text-ink-3 transition-colors hover:bg-hover hover:text-ink-2 data-[state=open]:bg-hover">
+            <span className="truncate">{label}</span>
+            <ChevronDown size={13} className="shrink-0" />
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            collisionPadding={12}
+            className="glass-strong z-50 w-[min(360px,calc(100vw-24px))] rounded-2xl p-3 text-[12.5px] text-ink-2 shadow-[var(--shadow-float)] data-[state=open]:animate-[menu-in_140ms_ease-out]"
+          >
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5">
+              {rows.map((r) => (
+                <div key={r.label} className="contents">
+                  <dt className="text-ink-3">{r.label}</dt>
+                  <dd className="flex min-w-0 flex-col gap-0.5">
+                    {r.people.map((p, i) => (
+                      <span key={`${i}-${p.email}`} className={cn("min-w-0 break-words select-text", mine.has(p.email.toLowerCase()) && "font-medium text-ink")}>
+                        {p.name && p.name !== p.email ? (
+                          <>
+                            {p.name} <span className="text-ink-3">&lt;{p.email}&gt;</span>
+                          </>
+                        ) : (
+                          p.email
+                        )}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+              <dt className="text-ink-3">{t("Date")}</dt>
+              <dd>{formatFullTime(message.date)}</dd>
+              {account && (
+                <>
+                  <dt className="text-ink-3">{t("Mailbox")}</dt>
+                  <dd className="flex min-w-0 items-center gap-1.5">
+                    <MailboxBadge icon={account.icon} hue={account.hue} image={account.image} size={16} className="rounded-[5px]" />
+                    <span className="truncate font-medium text-ink">{account.name || account.email}</span>
+                    {account.name && account.name !== account.email && <span className="truncate text-ink-3">{account.email}</span>}
+                  </dd>
+                </>
+              )}
+            </dl>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    </span>
   );
 }
 
@@ -949,25 +1019,24 @@ function BlockSub({ sender }: { sender: { name: string; email: string } }) {
   const domain = sender.email.slice(sender.email.lastIndexOf("@") + 1).toLowerCase();
   const who = sender.name || sender.email;
   return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className={subTriggerClass}>
-        <Ban size={14} /> <span className="flex-1 truncate">{t("Block {sender}", { sender: who })}</span>
-        <ChevronRight size={14} className="shrink-0 opacity-60" />
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent sideOffset={6} collisionPadding={8} className={cn(menuContentClass, "max-w-[320px]")}>
-          <div className="px-2.5 pt-1.5 pb-1 text-[11px] leading-snug font-medium text-ink-3">{t("What they send goes straight to Trash. You can undo it in Settings.")}</div>
-          <DropdownMenu.Item className={menuItemClass} onSelect={() => void blockSender(sender)}>
-            <Ban size={14} /> <span className="truncate">{sender.email}</span>
-          </DropdownMenu.Item>
-          {!isFreeMail(sender.email) && (
-            <DropdownMenu.Item className={menuItemClass} onSelect={() => void blockSender(sender, { domain: true })}>
-              <Ban size={14} /> <span className="truncate">{t("Everyone at {domain}", { domain })}</span>
-            </DropdownMenu.Item>
-          )}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
+    <MenuSub
+      className="max-w-[320px]"
+      trigger={
+        <>
+          <Ban size={14} /> <span className="flex-1 truncate">{t("Block {sender}", { sender: who })}</span>
+        </>
+      }
+    >
+      <div className="px-2.5 pt-1.5 pb-1 text-[11px] leading-snug font-medium text-ink-3">{t("What they send goes straight to Trash. You can undo it in Settings.")}</div>
+      <DropdownMenu.Item className={menuItemClass} onSelect={() => void blockSender(sender)}>
+        <Ban size={14} /> <span className="truncate">{sender.email}</span>
+      </DropdownMenu.Item>
+      {!isFreeMail(sender.email) && (
+        <DropdownMenu.Item className={menuItemClass} onSelect={() => void blockSender(sender, { domain: true })}>
+          <Ban size={14} /> <span className="truncate">{t("Everyone at {domain}", { domain })}</span>
+        </DropdownMenu.Item>
+      )}
+    </MenuSub>
   );
 }
 
@@ -1069,7 +1138,7 @@ export function ActionPill({ thread, onReply, advance = true }: { thread: Thread
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side="top" align="center" sideOffset={8} className={menuContentClass}>
+          <DropdownMenu.Content side="top" align="center" sideOffset={8} collisionPadding={8} className={cn(menuContentClass, "max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto")}>
             <DropdownMenu.Item className={menuItemClass} onSelect={() => setUnread(thread.id, true)}>
               <MailOpen size={14} /> {t("Mark as unread")} <Kbd className="ml-auto">U</Kbd>
             </DropdownMenu.Item>

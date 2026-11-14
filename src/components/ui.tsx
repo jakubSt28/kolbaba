@@ -2,6 +2,7 @@
 
 import {
   Briefcase,
+  ChevronRight,
   Code,
   Coffee,
   Globe,
@@ -21,8 +22,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { Tooltip as RTooltip } from "radix-ui";
-import { forwardRef, useState, type CSSProperties, type ReactNode } from "react";
+import { DropdownMenu, Tooltip as RTooltip } from "radix-ui";
+import { forwardRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { t, tk } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
 import type { MailboxIconName, Person } from "@/lib/types";
@@ -239,6 +240,63 @@ export const menuItemClass =
 
 /** A menu item that opens a submenu: while it's open it stays lit, and in the accent only while pointed at (its text is on-accent then). */
 export const subTriggerClass = `${menuItemClass} data-[state=open]:bg-hover data-[state=open]:data-[highlighted]:bg-accent`;
+
+/** Whether a media query matches, kept up to date (false while rendering on the server). */
+export function useMedia(query: string) {
+  return useSyncExternalStore(
+    (cb) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener("change", cb);
+      return () => mql.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+/**
+ * A submenu inside a dropdown. On a wide screen it opens beside the menu. A phone has no room beside it (it
+ * would open off the screen), so there the item unfolds its choices in place, the way iOS menus do.
+ */
+export function MenuSub({ trigger, children, className }: { trigger: ReactNode; children: ReactNode; className?: string }) {
+  const phone = useMedia("(max-width: 767px)");
+  const [open, setOpen] = useState(false);
+  if (phone) {
+    return (
+      <>
+        <DropdownMenu.Item
+          className={cn(menuItemClass, open && "bg-hover")}
+          aria-expanded={open}
+          onSelect={(e) => {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }}
+        >
+          {trigger}
+          <ChevronRight size={14} className={cn("shrink-0 opacity-60 transition-transform", open && "rotate-90")} />
+        </DropdownMenu.Item>
+        {open && (
+          <div ref={(el) => el?.scrollIntoView({ block: "nearest" })} className="my-0.5 ml-3 border-l border-line pl-1">
+            {children}
+          </div>
+        )}
+      </>
+    );
+  }
+  return (
+    <DropdownMenu.Sub>
+      <DropdownMenu.SubTrigger className={subTriggerClass}>
+        {trigger}
+        <ChevronRight size={14} className="shrink-0 opacity-60" />
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.SubContent sideOffset={6} collisionPadding={8} className={cn(menuContentClass, className)}>
+          {children}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
+  );
+}
 
 /** A small segmented switch (two or three choices), with the selection sliding between them. */
 export function Segmented<T extends string>({

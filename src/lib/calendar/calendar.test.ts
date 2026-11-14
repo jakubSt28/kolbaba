@@ -26,18 +26,18 @@ describe("calendar dates", () => {
     expect(monthGrid(parseDay("2027-02-10"))).toHaveLength(28);
   });
 
-  it("steps by the view: a month, a week, three days on a phone, a day", () => {
+  it("steps by the view: a month, a week, three days, a day", () => {
     const d = parseDay("2026-01-31");
     expect(dayKey(stepAnchor("month", d, 1))).toBe("2026-02-01");
     expect(dayKey(stepAnchor("week", d, 1))).toBe("2026-02-07");
-    expect(dayKey(stepAnchor("week", d, -1, 3))).toBe("2026-01-28");
+    expect(dayKey(stepAnchor("days", d, -1))).toBe("2026-01-28");
     expect(dayKey(stepAnchor("day", d, 1))).toBe("2026-02-01");
     expect(dayKey(addMonths(d, 1))).toBe("2026-02-28");
   });
 
   it("lists the days a view shows", () => {
     expect(visibleDays("week", parseDay("2026-11-11")).map(dayKey)).toEqual(["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"]);
-    expect(visibleDays("week", parseDay("2026-11-11"), 3).map(dayKey)).toEqual(["2026-11-11", "2026-11-12", "2026-11-13"]);
+    expect(visibleDays("days", parseDay("2026-11-11")).map(dayKey)).toEqual(["2026-11-11", "2026-11-12", "2026-11-13"]);
     expect(visibleDays("day", parseDay("2026-11-11")).map(dayKey)).toEqual(["2026-11-11"]);
   });
 

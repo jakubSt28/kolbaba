@@ -50,18 +50,20 @@ export function monthGrid(anchor: Date): Date[] {
   return Array.from({ length: weeks * 7 }, (_, i) => addDays(first, i));
 }
 
-/** The days a view shows around `anchor`; `days` is how many columns the time grid has (7 on a computer, 3 on a phone). */
-export function visibleDays(view: CalendarView, anchor: Date, days = 7): Date[] {
+/** How many days a time grid view shows at once. */
+const SPAN = { week: 7, days: 3, day: 1 } as const;
+
+/** The days a view shows around `anchor`: the month's weeks, the week from its Monday, or three days or one from `anchor`. */
+export function visibleDays(view: CalendarView, anchor: Date): Date[] {
   if (view === "month") return monthGrid(anchor);
-  if (view === "day") return [startOfDay(anchor)];
-  const first = days === 7 ? startOfWeek(anchor) : startOfDay(anchor);
-  return Array.from({ length: days }, (_, i) => addDays(first, i));
+  const first = view === "week" ? startOfWeek(anchor) : startOfDay(anchor);
+  return Array.from({ length: SPAN[view] }, (_, i) => addDays(first, i));
 }
 
 /** Where a step forwards or back lands. */
-export function stepAnchor(view: CalendarView, anchor: Date, delta: number, days = 7) {
+export function stepAnchor(view: CalendarView, anchor: Date, delta: number) {
   if (view === "month") return addMonths(startOfMonth(anchor), delta);
-  return addDays(anchor, delta * (view === "day" ? 1 : days));
+  return addDays(anchor, delta * SPAN[view]);
 }
 
 /** When an event is, as local dates: an all-day one runs from midnight to the midnight after its last day. */
