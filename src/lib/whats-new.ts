@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-14-tasks-pick",
+    date: "2026-11-14",
+    icon: "tasks",
+    title: tk("Change several tasks at once on the phone"),
+    body: tk("Hold a finger on a task to pick it, tap others to add them, and change their day, priority or list, tick them off or delete them in one go, from the bar at the bottom. Today now opens at today's tasks, with the overdue ones a scroll up."),
+    action: "tasks",
+  },
+  {
     id: "2026-11-14-calendar-week",
     date: "2026-11-14",
     icon: "calendar",

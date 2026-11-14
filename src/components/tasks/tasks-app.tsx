@@ -18,6 +18,7 @@ import { Drawer } from "../mobile-shell";
 import { menuContentClass, menuItemClass, Tooltip } from "../ui";
 import { TaskDetails } from "./task-details";
 import { TaskList, useSections, useViewTitle } from "./task-list";
+import { TaskSelectionBar, TaskSelectionTop, useChecked } from "./task-selection";
 import { openTickTickImport, TickTickImportHost } from "./ticktick-import";
 
 /** Loaded when the tasks open, and fresh again on coming back to the window (another device may have changed them). */
@@ -215,21 +216,27 @@ export function MobileTasks() {
   const selected = useTasks((s) => !!s.selectedId && s.tasks.some((x) => x.id === s.selectedId));
   const setDrawerOpen = useMail((s) => s.setDrawerOpen);
   const close = () => useTasks.getState().select(null);
+  const checked = useChecked();
 
   return (
     <div className="app-shell flex flex-col overflow-hidden bg-canvas">
-      <div className="flex shrink-0 items-center gap-2 px-3 pt-[max(14px,env(safe-area-inset-top))] pb-2">
-        <button aria-label={t("Lists")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
-          <Menu size={19} />
-        </button>
-        <ModeSwitch phone />
-        <span className="flex-1" />
-        <ViewMenus view={view} round />
-      </div>
+      {checked.length > 0 ? (
+        <TaskSelectionTop count={checked.length} />
+      ) : (
+        <div className="flex shrink-0 items-center gap-2 px-3 pt-[max(14px,env(safe-area-inset-top))] pb-2">
+          <button aria-label={t("Lists")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
+            <Menu size={19} />
+          </button>
+          <ModeSwitch phone />
+          <span className="flex-1" />
+          <ViewMenus view={view} round />
+        </div>
+      )}
       <h1 className="shrink-0 truncate px-4 pb-2 text-[28px] leading-tight font-bold tracking-[-0.03em]">{title}</h1>
       <div className="mx-2 mb-[max(8px,var(--safe-bottom))] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid pt-1 shadow-[var(--shadow-panel)]">
         <TaskList mobile />
       </div>
+      {checked.length > 0 && <TaskSelectionBar ids={checked} />}
       <AnimatePresence>
         {selected && (
           <motion.div

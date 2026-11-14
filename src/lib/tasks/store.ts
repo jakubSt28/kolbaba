@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { t } from "../i18n";
+import { t, tn } from "../i18n";
 import { api, LIVE } from "../live";
 import { useMail } from "../store";
 import { track } from "../usage";
@@ -28,6 +28,8 @@ interface TasksState {
   view: TaskView;
   /** The task open in the details. */
   selectedId: string | null;
+  /** Tasks picked on a phone (a long press), for changing several at once. */
+  checked: string[];
   sorts: Partial<Record<TaskView, TaskSort>>;
   /** Sections folded away or opened, by `view:section`; not here means as they start. */
   folded: Record<string, boolean>;
@@ -40,6 +42,11 @@ interface TasksState {
   loadMore: () => Promise<void>;
   setView: (view: TaskView) => void;
   select: (id: string | null) => void;
+  toggleChecked: (id: string) => void;
+  setChecked: (ids: string[]) => void;
+  /** Done, or not done again, all at once: one note to undo them all. */
+  completeMany: (ids: string[], done: boolean) => void;
+  removeMany: (ids: string[]) => void;
   add: (input: Partial<Omit<Task, "id">> & { title: string }) => Task;
   update: (id: string, patch: TaskPatch) => void;
   complete: (id: string, done: boolean) => void;
@@ -167,6 +174,7 @@ export const useTasks = create<TasksState>()((set, get) => {
     loadingMore: false,
     view: "today",
     selectedId: null,
+    checked: [],
     sorts: {},
     folded: {},
     addFocus: 0,
@@ -206,10 +214,32 @@ export const useTasks = create<TasksState>()((set, get) => {
 
     setView: (view) => {
       if (get().view === view) return;
-      set({ view, selectedId: null });
+      set({ view, selectedId: null, checked: [] });
       writeJson(VIEW_KEY, view);
     },
     select: (selectedId) => set({ selectedId }),
+    toggleChecked: (id) => set((s) => ({ checked: s.checked.includes(id) ? s.checked.filter((x) => x !== id) : [...s.checked, id] })),
+    setChecked: (checked) => set({ checked }),
+    completeMany: (ids, done) => {
+      const tasks = get().tasks.filter((x) => ids.includes(x.id) && (x.completedAt === null) === done);
+      // A repeating task moves on to its next day, and says when that is.
+      const repeating = done ? tasks.filter((x) => x.repeat && x.due) : [];
+      for (const x of repeating) get().complete(x.id, true);
+      const plain = tasks.filter((x) => !repeating.includes(x)).map((x) => x.id);
+      if (!plain.length) return;
+      for (const id of plain) get().update(id, { completed: done });
+      if (!done) return;
+      track("taskDone");
+      const undo = () => plain.forEach((id) => get().update(id, { completed: false }));
+      toast(plain.length === 1 ? t("Task completed") : tn(plain.length, "{n} task completed", "{n} tasks completed"), undo);
+    },
+    removeMany: (ids) => {
+      const gone = ids.filter((id) => get().tasks.some((x) => x.id === id && x.deletedAt === null));
+      if (!gone.length) return;
+      for (const id of gone) get().update(id, { deleted: true });
+      if (get().selectedId && gone.includes(get().selectedId!)) set({ selectedId: null });
+      toast(gone.length === 1 ? t("Moved to Trash") : tn(gone.length, "{n} task moved to Trash", "{n} tasks moved to Trash"), () => gone.forEach((id) => get().restore(id)));
+    },
 
     add: (input) => {
       const task: Task = {

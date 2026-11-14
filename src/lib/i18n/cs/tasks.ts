@@ -25,6 +25,18 @@ export const tasks: Dictionary = {
   "Mark as done": "Označit jako hotové",
   "Mark as not done": "Označit jako nehotové",
   "Task completed": "Úkol je hotový",
+  "{n} tasks completed": {
+    one: "{n} úkol je hotový",
+    few: "{n} úkoly jsou hotové",
+    other: "{n} úkolů je hotových",
+  },
+  "{n} tasks moved to Trash": {
+    one: "{n} úkol přesunut do koše",
+    few: "{n} úkoly přesunuty do koše",
+    other: "{n} úkolů přesunuto do koše",
+  },
+  List: "Seznam",
+  "Not done": "Nehotové",
   "Has a description": "Má popis",
   "Change the date: {date}": "Změnit datum: {date}",
   "What needs doing?": "Co je potřeba udělat?",

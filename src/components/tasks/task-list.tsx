@@ -2,7 +2,7 @@
 
 import { AlignLeft, ArchiveRestore, CalendarDays, Check, ChevronDown, ChevronRight, CircleCheckBig, GripVertical, Inbox, List, Plus, Repeat, Sun, Sunrise, Trash2, X } from "lucide-react";
 import { ContextMenu } from "radix-ui";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
 import { dayFrom, dueLabel, isOverdue, parseQuickAdd, priorityLabel, sectionsOf, type TaskSection } from "@/lib/tasks/logic";
@@ -10,6 +10,7 @@ import { canReorder, isFolded, sortOf, useTasks } from "@/lib/tasks/store";
 import { PRIORITIES, TRASH_DAYS, viewListId, type Priority, type Task, type TaskList as TaskListType, type TaskView } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
 import { track } from "@/lib/usage";
+import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { menuContentClass, menuItemClass, subTriggerClass } from "../ui";
 import { DatePicker, PriorityFlag, PriorityMenu, TaskCheck, type DueValue } from "./task-bits";
@@ -65,6 +66,23 @@ export function TaskList({ mobile }: { mobile?: boolean }) {
   const loadingMore = useTasks((s) => s.loadingMore);
   const adds = view !== "completed" && view !== "trash";
   const empty = ready && !sections.some((s) => s.tasks.length);
+  const scroller = useRef<HTMLDivElement>(null);
+  const overdue = sections[0]?.key === "overdue" ? sections[0].tasks.length : 0;
+  const placed = useRef<TaskView | null>(null);
+
+  // Today and the 7 days open at today, not at the top of a long pile of what's overdue: that waits above,
+  // a scroll up away. Once each time the view opens, so a scroll of your own stays where you put it.
+  useLayoutEffect(() => {
+    if (placed.current === view || !ready) return;
+    placed.current = view;
+    const box = scroller.current;
+    if (!box) return;
+    box.scrollTop = 0;
+    if (!overdue || (view !== "today" && view !== "next7")) return;
+    const next = box.querySelector<HTMLElement>('[data-section="overdue"] + [data-section]');
+    // A bit of the last overdue task still shows on top, so it's clear there's more above.
+    if (next) box.scrollTop = next.getBoundingClientRect().top - box.getBoundingClientRect().top - 28;
+  }, [view, ready, overdue]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -73,6 +91,7 @@ export function TaskList({ mobile }: { mobile?: boolean }) {
         <p className="shrink-0 px-5 pb-2 text-[12.5px] text-ink-3">{t("Tasks in Trash are deleted for good after {days} days.", { days: TRASH_DAYS })}</p>
       )}
       <div
+        ref={scroller}
         className={cn("min-h-0 flex-1 overflow-y-auto pb-24", mobile ? "px-1.5" : "px-3")}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) useTaskDrag.setState({ over: null });
@@ -229,6 +248,7 @@ function Section({ section, mobile }: { section: TaskSection; mobile?: boolean }
 
   return (
     <section
+      data-section={section.key}
       onDragOver={(e) => onDragOver(e, useTaskDrag.getState().over?.section === section.key ? (useTaskDrag.getState().over?.before ?? null) : null)}
       onDrop={onDrop}
       className={cn("relative mb-1 rounded-[12px] transition-colors", over && accepts && !reorder && "bg-accent-soft shadow-[inset_0_0_0_1.5px_var(--accent)]")}
@@ -266,11 +286,55 @@ function Section({ section, mobile }: { section: TaskSection; mobile?: boolean }
 
 /* ------------------------------------ Row ----------------------------------- */
 
+/** How long a finger rests on a task to pick it (as on a conversation). */
+const LONG_PRESS_MS = 420;
+
+/** On a phone a long press picks the task; while any is picked, a tap picks or drops one more. */
+function useLongPress(id: string, enabled: boolean) {
+  const press = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const firedRef = useRef(false);
+  const cancel = () => {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  useEffect(() => cancel, []);
+  if (!enabled) return { firedRef };
+  return {
+    firedRef,
+    onPointerDown: (e: PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      firedRef.current = false;
+      cancel();
+      press.current = {
+        x: e.clientX,
+        y: e.clientY,
+        timer: setTimeout(() => {
+          press.current = null;
+          firedRef.current = true;
+          const { checked, toggleChecked } = useTasks.getState();
+          if (!checked.includes(id)) toggleChecked(id);
+          haptic("tick");
+        }, LONG_PRESS_MS),
+      };
+    },
+    onPointerMove: (e: PointerEvent) => {
+      const p = press.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (e: MouseEvent) => e.preventDefault(),
+  };
+}
+
 function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: boolean; line: boolean; onDragOver: (e: DragEvent<HTMLDivElement>) => void }) {
   const now = new Date(useNow());
   const view = useTasks((s) => s.view);
   const selected = useTasks((s) => s.selectedId === task.id);
-  const { select, complete, update } = useTasks.getState();
+  const picking = useTasks((s) => !!mobile && s.checked.length > 0);
+  const checked = useTasks((s) => !!mobile && s.checked.includes(task.id));
+  const { select, complete, update, toggleChecked } = useTasks.getState();
+  const { firedRef, ...pressHandlers } = useLongPress(task.id, !!mobile);
   const dragging = useTaskDrag((s) => s.id === task.id);
   const trashed = task.deletedAt !== null;
   const done = task.completedAt !== null;
@@ -281,71 +345,86 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   // Where it lives, when the view gathers tasks from every list (as TickTick shows "Inbox" there).
   const list = useTasks((s) => (s.lists.length && !viewListId(s.view) && s.view !== "inbox" ? (task.listId ? (s.lists.find((l) => l.id === task.listId) ?? null) : "inbox") : null));
 
-  return (
-    <TaskContextMenu task={task}>
-      <div
-        data-task={task.id}
-        draggable={draggable}
-        onDragStart={(e) => {
-          e.dataTransfer.setData(TASK_DRAG, task.id);
-          e.dataTransfer.effectAllowed = "move";
-          select(task.id);
-          useTaskDrag.setState({ id: task.id, over: null });
-        }}
-        onDragEnd={() => useTaskDrag.setState({ id: null, over: null })}
-        onDragOver={onDragOver}
-        onClick={() => select(task.id)}
-        aria-selected={selected}
-        className={cn(
-          "group/task relative flex cursor-default items-center gap-3 rounded-[10px] pr-3 pl-3 transition-colors",
-          mobile ? "h-12" : "h-11",
-          selected ? "bg-selected" : "hover:bg-hover",
-          dragging && "opacity-40",
-        )}
-      >
-        {line && <span className="pointer-events-none absolute -top-px right-3 left-9 h-[2px] rounded-full bg-accent" />}
-        {draggable && view !== "completed" && (
-          <GripVertical size={13} className="absolute top-1/2 -left-2.5 -translate-y-1/2 cursor-grab text-ink-3 opacity-0 transition-opacity group-hover/task:opacity-100" />
-        )}
+  const row = (
+    <div
+      data-task={task.id}
+      {...pressHandlers}
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(TASK_DRAG, task.id);
+        e.dataTransfer.effectAllowed = "move";
+        select(task.id);
+        useTaskDrag.setState({ id: task.id, over: null });
+      }}
+      onDragEnd={() => useTaskDrag.setState({ id: null, over: null })}
+      onDragOver={onDragOver}
+      onClick={() => {
+        // The click that ends a long press isn't a tap.
+        if (firedRef.current) return void (firedRef.current = false);
+        if (picking) toggleChecked(task.id);
+        else select(task.id);
+      }}
+      aria-selected={picking ? checked : selected}
+      className={cn(
+        "group/task relative flex cursor-default items-center gap-3 rounded-[10px] pr-3 pl-3 transition-colors",
+        mobile ? "h-12 [-webkit-touch-callout:none] select-none" : "h-11",
+        selected || checked ? "bg-selected" : "hover:bg-hover",
+        dragging && "opacity-40",
+      )}
+    >
+      {line && <span className="pointer-events-none absolute -top-px right-3 left-9 h-[2px] rounded-full bg-accent" />}
+      {draggable && view !== "completed" && (
+        <GripVertical size={13} className="absolute top-1/2 -left-2.5 -translate-y-1/2 cursor-grab text-ink-3 opacity-0 transition-opacity group-hover/task:opacity-100" />
+      )}
+      {picking ? (
+        <span
+          aria-hidden
+          className={cn("flex size-[19px] shrink-0 items-center justify-center rounded-full transition-colors", checked ? "bg-accent text-on-accent" : "shadow-[inset_0_0_0_1.5px_var(--ink-3)]")}
+        >
+          {checked && <Check size={12} strokeWidth={3.2} />}
+        </span>
+      ) : (
         <TaskCheck task={task} disabled={trashed} onToggle={() => complete(task.id, !done)} />
-        <div className={cn("flex min-w-0 flex-1 items-center gap-2 self-stretch border-b border-line transition-colors group-hover/task:border-transparent", selected && "border-transparent")}>
-          <span className={cn("min-w-0 flex-1 truncate text-[14px]", done || trashed ? "text-ink-3" : "text-ink", done && "line-through decoration-ink-3/60", !task.title && "text-ink-3 italic")}>
-            {task.title || t("(No title)")}
-          </span>
-          {list && !mobile && (
-            <span className="max-w-[140px] shrink-0 truncate text-[12px] text-ink-3">{list === "inbox" ? t("Inbox@@tasks") : `${list.emoji ? `${list.emoji} ` : ""}${list.name}`}</span>
-          )}
-          {task.notes && <AlignLeft size={13} aria-label={t("Has a description")} className="shrink-0 text-ink-3" />}
-          {task.repeat && task.due && !done && <Repeat size={12} aria-label={t("Repeats")} className="shrink-0 text-ink-3" />}
-          {label &&
-            (done || trashed ? (
-              <span className="shrink-0 text-[12px] whitespace-nowrap text-ink-3 tabular-nums">{label}</span>
-            ) : (
-              // The day changes right here, without opening the task. The picker is portalled, but its clicks
-              // still bubble through React to the row, which would open the task: they stop at this span.
-              <span className="flex shrink-0 self-stretch" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                <DatePicker
-                  align="end"
-                  value={{ due: task.due, time: task.time, repeat: task.repeat }}
-                  onChange={(v) => update(task.id, { due: v.due, time: v.due ? v.time : null, repeat: v.due ? v.repeat : null })}
+      )}
+      <div className={cn("flex min-w-0 flex-1 items-center gap-2 self-stretch border-b border-line transition-colors group-hover/task:border-transparent", selected && "border-transparent")}>
+        <span className={cn("min-w-0 flex-1 truncate text-[14px]", done || trashed ? "text-ink-3" : "text-ink", done && "line-through decoration-ink-3/60", !task.title && "text-ink-3 italic")}>
+          {task.title || t("(No title)")}
+        </span>
+        {list && !mobile && (
+          <span className="max-w-[140px] shrink-0 truncate text-[12px] text-ink-3">{list === "inbox" ? t("Inbox@@tasks") : `${list.emoji ? `${list.emoji} ` : ""}${list.name}`}</span>
+        )}
+        {task.notes && <AlignLeft size={13} aria-label={t("Has a description")} className="shrink-0 text-ink-3" />}
+        {task.repeat && task.due && !done && <Repeat size={12} aria-label={t("Repeats")} className="shrink-0 text-ink-3" />}
+        {label &&
+          (done || trashed || picking ? (
+            <span className={cn("shrink-0 text-[12px] whitespace-nowrap tabular-nums", done || trashed ? "text-ink-3" : overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3")}>{label}</span>
+          ) : (
+            // The day changes right here, without opening the task. The picker is portalled, but its clicks
+            // still bubble through React to the row, which would open the task: they stop at this span.
+            <span className="flex shrink-0 self-stretch" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+              <DatePicker
+                align="end"
+                value={{ due: task.due, time: task.time, repeat: task.repeat }}
+                onChange={(v) => update(task.id, { due: v.due, time: v.due ? v.time : null, repeat: v.due ? v.repeat : null })}
+              >
+                <button
+                  aria-label={t("Change the date: {date}", { date: label })}
+                  className={cn(
+                    "-mr-1.5 flex items-center self-center rounded-[7px] px-1.5 text-[12px] whitespace-nowrap tabular-nums transition-colors hover:bg-ink/[0.06] data-[state=open]:bg-ink/[0.06]",
+                    mobile ? "h-9" : "h-7",
+                    overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3",
+                  )}
                 >
-                  <button
-                    aria-label={t("Change the date: {date}", { date: label })}
-                    className={cn(
-                      "-mr-1.5 flex items-center self-center rounded-[7px] px-1.5 text-[12px] whitespace-nowrap tabular-nums transition-colors hover:bg-ink/[0.06] data-[state=open]:bg-ink/[0.06]",
-                      mobile ? "h-9" : "h-7",
-                      overdue ? "text-danger" : today ? "text-accent-text" : "text-ink-3",
-                    )}
-                  >
-                    {label}
-                  </button>
-                </DatePicker>
-              </span>
-            ))}
-        </div>
+                  {label}
+                </button>
+              </DatePicker>
+            </span>
+          ))}
       </div>
-    </TaskContextMenu>
+    </div>
   );
+  // A phone has the long press instead: a right-click menu would open there too, small and in the way.
+  return mobile ? row : <TaskContextMenu task={task}>{row}</TaskContextMenu>;
 }
 
 /* -------------------------------- Right click -------------------------------- */

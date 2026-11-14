@@ -12,6 +12,8 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Change several tasks at once on the phone": "Na telefonu změníš víc úkolů najednou",
+  "Hold a finger on a task to pick it, tap others to add them, and change their day, priority or list, tick them off or delete them in one go, from the bar at the bottom. Today now opens at today's tasks, with the overdue ones a scroll up.": "Podrž prst na úkolu a vybereš ho, klepnutím přidáš další. Pak jim v liště dole najednou změníš den, prioritu nebo seznam, odškrtneš je nebo smažeš. Pohled Dnes se teď otevře u dnešních úkolů, ty po termínu najdeš o kus výš.",
   "The whole week in the calendar on your phone": "Celý týden v kalendáři i na telefonu",
   "The calendar on the phone now shows a day, three days, the whole week or the month. Three days are on the computer too, next to Day, Week and Month.": "Kalendář na telefonu teď ukáže den, tři dny, celý týden nebo měsíc. Tři dny jsou i na počítači, vedle dne, týdne a měsíce.",
   "Mail, calendar and tasks one tap apart on the phone": "Na telefonu přepneš mezi poštou, kalendářem a úkoly jedním klepnutím",
