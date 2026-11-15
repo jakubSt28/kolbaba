@@ -140,7 +140,8 @@ function Empty({ view }: { view: TaskView }) {
 
 /* --------------------------------- Quick add -------------------------------- */
 
-/** "Add a task": Enter saves it and the line is ready for the next. Its day and priority can be picked, or typed at its end. */
+/** "Add a task": Enter saves it and the line is ready for the next. Its day and priority can be picked, or typed at its end.
+ *  A long title wraps onto more lines rather than sliding out of sight, so all of it can be read and tapped into. */
 function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
   const now = new Date(useNow());
   const add = useTasks((s) => s.add);
@@ -149,11 +150,19 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
   const [picked, setPicked] = useState<{ due?: DueValue; priority?: Priority }>({});
   const listId = viewListId(view);
   const list = useTasks((s) => s.lists.find((l) => l.id === listId));
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (focus) input.current?.focus({ preventScroll: true });
   }, [focus]);
+
+  // As tall as what's written.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
 
   const parsed = parseQuickAdd(text, now);
   const base: DueValue = picked.due ?? { due: view === "today" || view === "next7" ? dayFrom(now, 0) : null, time: null, repeat: null };
@@ -176,22 +185,32 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
         submit();
       }}
       className={cn(
-        "group/add mb-2 flex shrink-0 items-center gap-2 rounded-[12px] bg-hover pr-1.5 pl-3 transition-shadow focus-within:bg-solid focus-within:shadow-[inset_0_0_0_1.5px_var(--accent)]",
-        mobile ? "mx-2 mt-2 h-11" : "mx-4 h-10",
+        "group/add mb-2 flex shrink-0 items-start gap-2 rounded-[12px] bg-hover pr-1.5 pl-3 transition-shadow focus-within:bg-solid focus-within:shadow-[inset_0_0_0_1.5px_var(--accent)]",
+        mobile ? "mx-2 mt-2" : "mx-4",
       )}
     >
-      <Plus size={16} className="shrink-0 text-ink-3" />
-      <input
+      <span className={cn("flex shrink-0 items-center text-ink-3", mobile ? "h-11" : "h-10")}>
+        <Plus size={16} />
+      </span>
+      <textarea
         ref={input}
+        rows={1}
         value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()}
+        // A title is one line: what's pasted with line breaks joins up.
+        onChange={(e) => setText(e.target.value.replace(/[ \t]*[\r\n]+[ \t]*/g, " "))}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") e.currentTarget.blur();
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            submit();
+          }
+        }}
         enterKeyHint="done"
         placeholder={list ? t("Add a task to {list}", { list: list.name }) : view === "inbox" ? t("Add a task to the Inbox") : t("Add a task for today")}
         aria-label={t("New task")}
-        className="h-full min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
+        className={cn("block min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-3", mobile ? "py-3" : "py-2.5")}
       />
-      <div className={cn("flex shrink-0 items-center gap-0.5 transition-opacity", !mobile && !text && !picked.due && !picked.priority && "opacity-0 group-focus-within/add:opacity-100 group-hover/add:opacity-100")}>
+      <div className={cn("flex shrink-0 items-center gap-0.5 transition-opacity", mobile ? "h-11" : "h-10", !mobile && !text && !picked.due && !picked.priority && "opacity-0 group-focus-within/add:opacity-100 group-hover/add:opacity-100")}>
         <DatePicker value={due} onChange={(v) => setPicked((p) => ({ ...p, due: v }))} align="end">
           <button
             type="button"
