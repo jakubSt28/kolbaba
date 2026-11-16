@@ -160,6 +160,14 @@ function Title({ task, readOnly, onEnter }: { task: Task; readOnly: boolean; onE
   // Unsaved words go with the task when another one opens.
   useEffect(() => () => save(valueRef.current), [save]);
 
+  // Rewritten elsewhere (in the list's row, by an agent): shown here too, unless it's being written here right now.
+  useEffect(() => {
+    if (task.title === saved.current || document.activeElement === ref.current) return;
+    saved.current = task.title;
+    valueRef.current = task.title;
+    setValue(task.title);
+  }, [task.title]);
+
   // As tall as what's written.
   useLayoutEffect(() => {
     const el = ref.current;

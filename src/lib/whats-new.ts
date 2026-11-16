@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-16-task-title-inline",
+    date: "2026-11-16",
+    icon: "tasks",
+    title: tk("Rename a task right in the list"),
+    body: tk("On the computer, click a task's name in the list and rewrite it there. Enter saves it, Escape keeps the old name. The task opens on the side as before."),
+    action: "tasks",
+  },
+  {
     id: "2026-11-14-tasks-pick",
     date: "2026-11-14",
     icon: "tasks",

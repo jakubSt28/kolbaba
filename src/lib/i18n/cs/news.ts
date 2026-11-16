@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Rename a task right in the list": "Úkol přejmenuješ rovnou v seznamu",
+  "On the computer, click a task's name in the list and rewrite it there. Enter saves it, Escape keeps the old name. The task opens on the side as before.":
+    "Na počítači klikni na název úkolu v seznamu a přepiš ho přímo tam. Enter ho uloží, Escape nechá původní název. Úkol se vedle otevře jako dřív.",
   "Change several tasks at once on the phone": "Na telefonu změníš víc úkolů najednou",
   "Hold a finger on a task to pick it, tap others to add them, and change their day, priority or list, tick them off or delete them in one go, from the bar at the bottom. Today now opens at today's tasks, with the overdue ones a scroll up.": "Podrž prst na úkolu a vybereš ho, klepnutím přidáš další. Pak jim v liště dole najednou změníš den, prioritu nebo seznam, odškrtneš je nebo smažeš. Pohled Dnes se teď otevře u dnešních úkolů, ty po termínu najdeš o kus výš.",
   "The whole week in the calendar on your phone": "Celý týden v kalendáři i na telefonu",

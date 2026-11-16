@@ -360,7 +360,10 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   const overdue = isOverdue(task, now);
   const today = task.due === dayFrom(now, 0);
   const label = dueLabel(task, now);
-  const draggable = !mobile && !trashed;
+  const editable = !mobile && !trashed;
+  /** Where the caret goes in the title being rewritten here, or null when it isn't. */
+  const [editing, setEditing] = useState<number | null>(null);
+  const draggable = !mobile && !trashed && editing === null;
   // Where it lives, when the view gathers tasks from every list (as TickTick shows "Inbox" there).
   const list = useTasks((s) => (s.lists.length && !viewListId(s.view) && s.view !== "inbox" ? (task.listId ? (s.lists.find((l) => l.id === task.listId) ?? null) : "inbox") : null));
 
@@ -406,9 +409,19 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
         <TaskCheck task={task} disabled={trashed} onToggle={() => complete(task.id, !done)} />
       )}
       <div className={cn("flex min-w-0 flex-1 items-center gap-2 self-stretch border-b border-line transition-colors group-hover/task:border-transparent", selected && "border-transparent")}>
-        <span className={cn("min-w-0 flex-1 truncate text-[14px]", done || trashed ? "text-ink-3" : "text-ink", done && "line-through decoration-ink-3/60", !task.title && "text-ink-3 italic")}>
-          {task.title || t("(No title)")}
-        </span>
+        {editing !== null ? (
+          <TitleInput task={task} caret={editing} onDone={() => setEditing(null)} />
+        ) : (
+          <span className={cn("min-w-0 flex-1 truncate text-[14px]", done || trashed ? "text-ink-3" : "text-ink", done && "line-through decoration-ink-3/60", !task.title && "text-ink-3 italic")}>
+            <span
+              // On the computer a click on the words rewrites them right here; the task opens alongside as with any click.
+              onClick={editable ? (e) => setEditing(caretAt(e)) : undefined}
+              className={cn(editable && "cursor-text")}
+            >
+              {task.title || t("(No title)")}
+            </span>
+          </span>
+        )}
         {list && !mobile && (
           <span className="max-w-[140px] shrink-0 truncate text-[12px] text-ink-3">{list === "inbox" ? t("Inbox@@tasks") : `${list.emoji ? `${list.emoji} ` : ""}${list.name}`}</span>
         )}
@@ -444,6 +457,68 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   );
   // A phone has the long press instead: a right-click menu would open there too, small and in the way.
   return mobile ? row : <TaskContextMenu task={task}>{row}</TaskContextMenu>;
+}
+
+/** How far into the clicked words the click landed, so the caret goes there. */
+function caretAt(e: MouseEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  const end = el.textContent?.length ?? 0;
+  const doc = document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null };
+  const pos = document.caretPositionFromPoint?.(e.clientX, e.clientY);
+  if (pos && el.contains(pos.offsetNode)) return pos.offset;
+  const range = doc.caretRangeFromPoint?.(e.clientX, e.clientY);
+  if (range && el.contains(range.startContainer)) return range.startOffset;
+  return end;
+}
+
+/** A task's title rewritten in its row: Enter or a click away saves it, Escape leaves it as it was. */
+function TitleInput({ task, caret, onDone }: { task: Task; caret: number; onDone: () => void }) {
+  const [value, setValue] = useState(task.title);
+  const input = useRef<HTMLInputElement>(null);
+  const finished = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const at = task.title ? Math.min(caret, task.title.length) : 0;
+    el.setSelectionRange(at, at);
+    // Only on opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const finish = (save: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
+    const title = value.replace(/\s+/g, " ").trim();
+    // An emptied line puts back what was there: a task isn't left without a name by a slip.
+    if (save && title && title !== task.title) useTasks.getState().update(task.id, { title });
+    onDone();
+  };
+
+  return (
+    <input
+      ref={input}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          finish(true);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          finish(false);
+        }
+      }}
+      // The row's own clicks would open the task again; a right click gets the usual copy and paste.
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+      enterKeyHint="done"
+      aria-label={t("Title")}
+      className={cn("h-7 min-w-0 flex-1 bg-transparent text-[14px] outline-none", task.completedAt !== null ? "text-ink-3 line-through decoration-ink-3/60" : "text-ink")}
+    />
+  );
 }
 
 /* -------------------------------- Right click -------------------------------- */
