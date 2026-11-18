@@ -66,6 +66,14 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-18-task-drag-order",
+    date: "2026-11-18",
+    icon: "tasks",
+    title: tk("Drag tasks into the order you want, on the phone too"),
+    body: tk("Drag a task up or down in the list to move it. On the phone, hold a finger on it until it lifts, then move it; let go without moving and it's picked, as before. Sorted by date, a task moves among those of the same day and priority. Choose Custom order to put any task anywhere."),
+    action: "tasks",
+  },
+  {
     id: "2026-11-16-task-title-inline",
     date: "2026-11-16",
     icon: "tasks",

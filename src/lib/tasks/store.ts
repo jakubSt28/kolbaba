@@ -5,7 +5,7 @@ import { t, tn } from "../i18n";
 import { api, LIVE } from "../live";
 import { useMail } from "../store";
 import { track } from "../usage";
-import { dayFrom, dueLabel, orderBetween, splitEmoji, topOrder, type TaskSection } from "./logic";
+import { dayFrom, dropPlace, droppedInto, dueLabel, sortKeepsHand, splitEmoji, topOrder, type TaskSection } from "./logic";
 import { buildMockLists, buildMockTasks } from "./mock";
 import { nextDue } from "./repeat";
 import { newListId, newTaskId, viewListId, type Task, type TaskList, type TaskPatch, type TaskSort, type TaskView, type TasksPage } from "./types";
@@ -96,9 +96,9 @@ const writeJson = (key: string, value: unknown) => {
 
 export const sortOf = (sorts: Partial<Record<TaskView, TaskSort>>, view: TaskView): TaskSort => sorts[view] ?? "date";
 
-/** Tasks can be put in order by dragging them: in an open section of a list sorted by hand. */
+/** Tasks can be put in order by dragging them: in an open section, sorted any way but by title (dropPlace keeps them where the sort lets them be). */
 export const canReorder = (sorts: Partial<Record<TaskView, TaskSort>>, view: TaskView, section: TaskSection) =>
-  !section.done && sortOf(sorts, view) === "manual" && view !== "completed" && view !== "trash";
+  !section.done && sortKeepsHand(sortOf(sorts, view)) && view !== "completed" && view !== "trash";
 
 /** How a section starts: what's done folds away in the Inbox, and shows in Today and the 7 days. */
 export const isFolded = (folded: Record<string, boolean>, view: TaskView, section: TaskSection) =>
@@ -327,20 +327,18 @@ export const useTasks = create<TasksState>()((set, get) => {
       const task = get().tasks.find((x) => x.id === id);
       if (!task) return;
       const patch: TaskPatch = {};
-      // A place among the others only means something when the list is in the order set by hand.
-      if (canReorder(get().sorts, get().view, section)) {
-        const rest = section.tasks.filter((x) => x.id !== id);
-        const at = beforeId ? rest.findIndex((x) => x.id === beforeId) : rest.length;
-        const index = at < 0 ? rest.length : at;
-        const order = orderBetween(rest[index - 1]?.order, rest[index]?.order);
-        if (order !== task.order) patch.order = order;
-      }
       if (section.drop?.due !== undefined && section.drop.due !== task.due) patch.due = section.drop.due;
       if (section.drop?.priority !== undefined && section.drop.priority !== task.priority) patch.priority = section.drop.priority;
       if (!!section.done !== (task.completedAt !== null)) patch.completed = !!section.done;
-      if (!Object.keys(patch).length) return;
+      // Its place among the others, as far as the sort leaves that to the hand.
+      const { sorts, view } = get();
+      const orders = canReorder(sorts, view, section) ? (dropPlace(section.tasks, droppedInto(section, task), sortOf(sorts, view), beforeId)?.orders ?? {}) : {};
+      if (orders[id] !== undefined) patch.order = orders[id];
+      const others = Object.entries(orders).filter(([other]) => other !== id);
+      if (!Object.keys(patch).length && !others.length) return;
       track("taskDrag");
-      get().update(id, patch);
+      for (const [other, order] of others) get().update(other, { order });
+      if (Object.keys(patch).length) get().update(id, patch);
     },
 
     setSort: (view, sort) => {

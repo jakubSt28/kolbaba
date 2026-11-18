@@ -5,7 +5,7 @@ import { ContextMenu } from "radix-ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
-import { dayFrom, dueLabel, isOverdue, parseQuickAdd, priorityLabel, sectionsOf, type TaskSection } from "@/lib/tasks/logic";
+import { dayFrom, dropPlace, droppedInto, dueLabel, isOverdue, parseQuickAdd, priorityLabel, sectionsOf, type TaskSection } from "@/lib/tasks/logic";
 import { canReorder, isFolded, sortOf, useTasks } from "@/lib/tasks/store";
 import { PRIORITIES, TRASH_DAYS, viewListId, type Priority, type Task, type TaskList as TaskListType, type TaskView } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
@@ -31,6 +31,9 @@ export function changesTask(section: TaskSection, task: Task) {
     !!section.done !== (task.completedAt !== null)
   );
 }
+
+/** Where a dragged task may go: a new place in its own section, or a section that gives it something. */
+const acceptsDrop = (reorder: boolean, section: TaskSection, task: Task) => (reorder && section.tasks.some((x) => x.id === task.id)) || changesTask(section, task);
 
 export function viewTitle(view: TaskView, lists: TaskListType[]) {
   const list = viewListId(view);
@@ -84,6 +87,17 @@ export function TaskList({ mobile }: { mobile?: boolean }) {
     if (next) box.scrollTop = next.getBoundingClientRect().top - box.getBoundingClientRect().top - 28;
   }, [view, ready, overdue]);
 
+  // While a finger holds a task, the list stays still under it: the finger moves the task, not the list.
+  useEffect(() => {
+    const box = scroller.current;
+    if (!mobile || !box) return;
+    const still = (e: TouchEvent) => {
+      if (holding) e.preventDefault();
+    };
+    box.addEventListener("touchmove", still, { passive: false });
+    return () => box.removeEventListener("touchmove", still);
+  }, [mobile]);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {adds && <QuickAdd key={view} view={view} mobile={mobile} />}
@@ -92,6 +106,7 @@ export function TaskList({ mobile }: { mobile?: boolean }) {
       )}
       <div
         ref={scroller}
+        data-task-scroller
         className={cn("min-h-0 flex-1 overflow-y-auto pb-24", mobile ? "px-1.5" : "px-3")}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) useTaskDrag.setState({ over: null });
@@ -242,13 +257,13 @@ function Section({ section, mobile }: { section: TaskSection; mobile?: boolean }
   const folded = useTasks((s) => isFolded(s.folded, view, section));
   const setFolded = useTasks((s) => s.setFolded);
   const reorder = useTasks((s) => canReorder(s.sorts, view, section));
+  const sort = useTasks((s) => sortOf(s.sorts, view));
   const dragId = useTaskDrag((s) => s.id);
   const over = useTaskDrag((s) => (s.over?.section === section.key ? s.over : null));
   const dragged = useTasks((s) => (dragId ? s.tasks.find((x) => x.id === dragId) : undefined));
-  const inHere = !!dragged && section.tasks.some((x) => x.id === dragged.id);
-  // Where a dragged task may go: a place in a list sorted by hand, or a section that gives it something.
-  const accepts = !!dragged && ((reorder && inHere) || changesTask(section, dragged));
-  const lineAt = over && accepts && reorder ? over.before : undefined;
+  const accepts = !!dragged && acceptsDrop(reorder, section, dragged);
+  // The line shows where it will really land: sorted by date, a task stays among those of its day and priority.
+  const lineAt = over && accepts && reorder ? (dropPlace(section.tasks, droppedInto(section, dragged), sort, over.before)?.before ?? over.before) : undefined;
 
   const onDragOver = (e: DragEvent, before: string | null) => {
     if (!accepts || !isTaskDrag(e)) return;
@@ -274,6 +289,7 @@ function Section({ section, mobile }: { section: TaskSection; mobile?: boolean }
     >
       {section.title && (
         <button
+          data-section-title
           onClick={() => setFolded(`${view}:${section.key}`, !folded)}
           onDragOver={(e) => onDragOver(e, section.tasks[0]?.id ?? null)}
           aria-expanded={!folded}
@@ -308,42 +324,181 @@ function Section({ section, mobile }: { section: TaskSection; mobile?: boolean }
 /** How long a finger rests on a task to pick it (as on a conversation). */
 const LONG_PRESS_MS = 420;
 
-/** On a phone a long press picks the task; while any is picked, a tap picks or drops one more. */
-function useLongPress(id: string, enabled: boolean) {
-  const press = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+/** A finger holds a task down (a long press): the list doesn't scroll under it. */
+let holding = false;
+
+/**
+ * On a phone a long press picks the task; while any is picked, a tap picks or drops one more.
+ * A task that can move is held instead: let go and it's picked, move the finger and the task goes with it.
+ */
+function useLongPress(id: string, enabled: boolean, movable: boolean) {
+  const press = useRef<{ x: number; y: number; pointer: number; row: HTMLElement; held: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const firedRef = useRef(false);
+  const [held, setHeld] = useState(false);
+  const pick = () => {
+    const { checked, toggleChecked } = useTasks.getState();
+    if (!checked.includes(id)) toggleChecked(id);
+  };
   const cancel = () => {
-    if (press.current) clearTimeout(press.current.timer);
+    const p = press.current;
     press.current = null;
+    if (!p) return;
+    clearTimeout(p.timer);
+    if (p.held) {
+      holding = false;
+      setHeld(false);
+    }
   };
   useEffect(() => cancel, []);
-  if (!enabled) return { firedRef };
+  if (!enabled) return { firedRef, held };
   return {
     firedRef,
-    onPointerDown: (e: PointerEvent) => {
-      if (e.pointerType === "mouse") return;
-      firedRef.current = false;
-      cancel();
-      press.current = {
-        x: e.clientX,
-        y: e.clientY,
-        timer: setTimeout(() => {
-          press.current = null;
-          firedRef.current = true;
-          const { checked, toggleChecked } = useTasks.getState();
-          if (!checked.includes(id)) toggleChecked(id);
-          haptic("tick");
-        }, LONG_PRESS_MS),
-      };
+    held,
+    handlers: {
+      onPointerDown: (e: PointerEvent<HTMLElement>) => {
+        if (e.pointerType === "mouse") return;
+        firedRef.current = false;
+        cancel();
+        const p = {
+          x: e.clientX,
+          y: e.clientY,
+          pointer: e.pointerId,
+          row: e.currentTarget,
+          held: false,
+          timer: setTimeout(() => {
+            firedRef.current = true;
+            haptic("tick");
+            if (!movable) {
+              press.current = null;
+              return pick();
+            }
+            p.held = true;
+            holding = true;
+            setHeld(true);
+          }, LONG_PRESS_MS),
+        };
+        press.current = p;
+      },
+      onPointerMove: (e: PointerEvent) => {
+        const p = press.current;
+        if (!p) return;
+        const far = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+        // Moving before the press is long enough is a scroll.
+        if (!p.held) return void (far > 8 && cancel());
+        if (far < 6) return;
+        press.current = null;
+        setHeld(false);
+        dragByTouch(id, p.row, p.pointer, p.y, e.clientX, e.clientY);
+      },
+      onPointerUp: () => {
+        if (press.current?.held) pick();
+        cancel();
+      },
+      onPointerCancel: cancel,
+      onContextMenu: (e: MouseEvent) => e.preventDefault(),
     },
-    onPointerMove: (e: PointerEvent) => {
-      const p = press.current;
-      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) cancel();
-    },
-    onPointerUp: cancel,
-    onPointerCancel: cancel,
-    onContextMenu: (e: MouseEvent) => e.preventDefault(),
   };
+}
+
+/** How close to the list's top or bottom edge a dragged task scrolls it. */
+const SCROLL_EDGE = 64;
+
+/**
+ * A task moved by a finger: a copy of it follows the finger, the line shows where it will land,
+ * the list scrolls near its edges, and letting go puts it there, as a drag with the mouse does.
+ */
+function dragByTouch(id: string, row: HTMLElement, pointer: number, startY: number, x0: number, y0: number) {
+  const scroller = row.closest<HTMLElement>("[data-task-scroller]");
+  const rect = row.getBoundingClientRect();
+  const ghost = row.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute("data-task");
+  ghost.setAttribute("aria-hidden", "true");
+  Object.assign(ghost.style, {
+    position: "fixed",
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    margin: "0",
+    zIndex: "60",
+    pointerEvents: "none",
+    background: "var(--solid)",
+    boxShadow: "var(--shadow-panel)",
+  });
+  document.body.appendChild(ghost);
+  holding = true;
+  useTaskDrag.setState({ id, over: null });
+  let x = x0;
+  let y = y0;
+  let frame = 0;
+
+  const aim = () => {
+    const el = document.elementFromPoint(x, y);
+    const sectionEl = el?.closest<HTMLElement>("[data-section]");
+    if (!el || !sectionEl) {
+      // Between two sections the last place stands; off the list there's none.
+      if (!scroller?.contains(el)) useTaskDrag.setState({ over: null });
+      return;
+    }
+    const key = sectionEl.dataset.section!;
+    const rows = [...sectionEl.querySelectorAll<HTMLElement>("[data-task]")];
+    const rowEl = el.closest<HTMLElement>("[data-task]");
+    const was = useTaskDrag.getState().over;
+    let before: string | null;
+    if (rowEl) {
+      const r = rowEl.getBoundingClientRect();
+      before = y < r.top + r.height / 2 ? rowEl.dataset.task! : (rows[rows.indexOf(rowEl) + 1]?.dataset.task ?? null);
+    } else if (el.closest("[data-section-title]")) before = rows[0]?.dataset.task ?? null;
+    else before = was?.section === key ? was.before : null;
+    if (was?.section !== key || was.before !== before) useTaskDrag.setState({ over: { section: key, before } });
+  };
+
+  const scroll = () => {
+    frame = 0;
+    if (!scroller) return;
+    const box = scroller.getBoundingClientRect();
+    const by = y < box.top + SCROLL_EDGE ? y - box.top - SCROLL_EDGE : y > box.bottom - SCROLL_EDGE ? y - box.bottom + SCROLL_EDGE : 0;
+    if (!by) return;
+    const was = scroller.scrollTop;
+    scroller.scrollTop += Math.max(-16, Math.min(16, by / 4));
+    if (scroller.scrollTop === was) return;
+    aim();
+    frame = requestAnimationFrame(scroll);
+  };
+
+  const move = (e: globalThis.PointerEvent) => {
+    if (e.pointerId !== pointer) return;
+    x = e.clientX;
+    y = e.clientY;
+    ghost.style.top = `${rect.top + y - startY}px`;
+    aim();
+    if (!frame) frame = requestAnimationFrame(scroll);
+  };
+
+  const end = (e: globalThis.PointerEvent) => {
+    if (e.pointerId !== pointer) return;
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+    cancelAnimationFrame(frame);
+    ghost.remove();
+    holding = false;
+    const { over } = useTaskDrag.getState();
+    useTaskDrag.setState({ id: null, over: null });
+    if (e.type !== "pointerup" || !over) return;
+    const s = useTasks.getState();
+    const task = s.tasks.find((t) => t.id === id);
+    const section = sectionsOf(s.tasks, s.view, sortOf(s.sorts, s.view), new Date()).find((x) => x.key === over.section);
+    if (!task || !section || !acceptsDrop(canReorder(s.sorts, s.view, section), section, task)) return;
+    s.place(id, section, over.before);
+    haptic("soft");
+  };
+
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  ghost.style.top = `${rect.top + y - startY}px`;
+  aim();
 }
 
 function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: boolean; line: boolean; onDragOver: (e: DragEvent<HTMLDivElement>) => void }) {
@@ -353,9 +508,9 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
   const picking = useTasks((s) => !!mobile && s.checked.length > 0);
   const checked = useTasks((s) => !!mobile && s.checked.includes(task.id));
   const { select, complete, update, toggleChecked } = useTasks.getState();
-  const { firedRef, ...pressHandlers } = useLongPress(task.id, !!mobile);
-  const dragging = useTaskDrag((s) => s.id === task.id);
   const trashed = task.deletedAt !== null;
+  const { firedRef, held, handlers: pressHandlers } = useLongPress(task.id, !!mobile, !trashed && view !== "completed");
+  const dragging = useTaskDrag((s) => s.id === task.id);
   const done = task.completedAt !== null;
   const overdue = isOverdue(task, now);
   const today = task.due === dayFrom(now, 0);
@@ -388,9 +543,11 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
       }}
       aria-selected={picking ? checked : selected}
       className={cn(
-        "group/task relative flex cursor-default items-center gap-3 rounded-[10px] pr-3 pl-3 transition-colors",
+        "group/task relative flex cursor-default items-center gap-3 rounded-[10px] pr-3 pl-3 transition-[background-color,scale,box-shadow]",
         mobile ? "h-12 [-webkit-touch-callout:none] select-none" : "h-11",
         selected || checked ? "bg-selected" : "hover:bg-hover",
+        // Held by a finger: lifted off the list, ready to move.
+        held && "z-10 scale-[1.02] bg-solid shadow-[var(--shadow-panel)]",
         dragging && "opacity-40",
       )}
     >

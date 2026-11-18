@@ -83,6 +83,65 @@ export function orderBetween(prev: number | undefined, next: number | undefined)
 /** The order of a new task: above every other. */
 export const topOrder = (tasks: Task[]) => (tasks.length ? Math.min(...tasks.map((x) => x.order)) - 1024 : 0);
 
+/** What a sort orders tasks by before the order set by hand; null when nothing is left to the hand (by title). */
+function beforeHand(sort: TaskSort): ((a: Task, b: Task) => number) | null {
+  if (sort === "manual") return () => 0;
+  if (sort === "date") return (a, b) => byDay(a, b) || byPriority(a, b);
+  if (sort === "priority") return (a, b) => byPriority(a, b) || byDay(a, b);
+  return null;
+}
+
+/** Tasks can be dragged into an order of their own: in every sort but by title. */
+export const sortKeepsHand = (sort: TaskSort) => beforeHand(sort) !== null;
+
+/** A task as it is once dropped into a section: with the day or priority the section gives. */
+export function droppedInto(section: TaskSection, task: Task): Task {
+  return {
+    ...task,
+    ...(section.drop?.due !== undefined && section.drop.due !== task.due ? { due: section.drop.due, ...(section.drop.due === null ? { time: null, repeat: null } : {}) } : {}),
+    ...(section.drop?.priority !== undefined ? { priority: section.drop.priority } : {}),
+  };
+}
+
+/**
+ * Where a task dragged into a section lands, and the orders that keep it there. `tasks` are the
+ * section's as drawn (the dragged one may be among them), `task` the dragged one as it will be
+ * once dropped. It goes before `beforeId` (null: at the end), moved only as far as the sort makes
+ * it: a task sorted by date stays among those of its day and priority, the way the list shows them.
+ * `before` is the task it ends up above (null: the last), and `orders` the orders that change.
+ */
+export function dropPlace(tasks: Task[], task: Task, sort: TaskSort, beforeId: string | null): { before: string | null; orders: Record<string, number> } | null {
+  const ranks = beforeHand(sort);
+  if (!ranks) return null;
+  const rest = tasks.filter((x) => x.id !== task.id);
+  // Over itself it stays where it is: before the one after it.
+  const own = tasks.findIndex((x) => x.id === task.id);
+  if (own >= 0 && beforeId === task.id) beforeId = tasks[own + 1]?.id ?? null;
+  // The section is in its sort's order, so those that must stay above come first, then the ones it ties with.
+  const lo = rest.filter((x) => ranks(x, task) < 0).length;
+  const hi = rest.length - rest.filter((x) => ranks(x, task) > 0).length;
+  const at = beforeId === null ? rest.length : rest.findIndex((x) => x.id === beforeId);
+  const index = Math.min(Math.max(at < 0 ? rest.length : at, lo), hi);
+  const before = rest[index]?.id ?? null;
+  // Back where it was: nothing changes.
+  if (own === index) return { before, orders: {} };
+
+  const group = rest.slice(lo, hi);
+  const i = index - lo;
+  const prev = group[i - 1];
+  const next = group[i];
+  if (!prev && !next) return { before, orders: {} };
+  const order = orderBetween(prev?.order, next?.order);
+  if (!prev || !next || (prev.order < order && order < next.order)) return { before, orders: { [task.id]: order } };
+  // No room between them (an import gives many tasks the same order): the ones it ties with get fresh orders, a step apart.
+  const orders: Record<string, number> = {};
+  [...group.slice(0, i), task, ...group.slice(i)].forEach((x, k) => {
+    const fresh = group[0].order + k * 1024;
+    if (fresh !== x.order) orders[x.id] = fresh;
+  });
+  return { before, orders };
+}
+
 /* --------------------------------- Sections -------------------------------- */
 
 export interface TaskSection {

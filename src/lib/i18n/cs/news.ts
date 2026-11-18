@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Drag tasks into the order you want, on the phone too": "Úkoly seřadíš přetažením, i na telefonu",
+  "Drag a task up or down in the list to move it. On the phone, hold a finger on it until it lifts, then move it; let go without moving and it's picked, as before. Sorted by date, a task moves among those of the same day and priority. Choose Custom order to put any task anywhere.":
+    "Přetáhni úkol v seznamu nahoru nebo dolů a přesuneš ho. Na telefonu na něm podrž prst, až se nadzvedne, a pak ho posuň. Když pustíš bez posunutí, úkol se vybere jako dřív. Při řazení podle data se úkol posouvá mezi úkoly se stejným dnem a prioritou. Ve Vlastním pořadí dáš libovolný úkol kamkoli.",
   "Rename a task right in the list": "Úkol přejmenuješ rovnou v seznamu",
   "On the computer, click a task's name in the list and rewrite it there. Enter saves it, Escape keeps the old name. The task opens on the side as before.":
     "Na počítači klikni na název úkolu v seznamu a přepiš ho přímo tam. Enter ho uloží, Escape nechá původní název. Úkol se vedle otevře jako dřív.",

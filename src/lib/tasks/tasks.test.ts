@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayFrom, dueLabel, inView, isOverdue, orderBetween, parseQuickAdd, sectionsOf, viewCount } from "./logic";
+import { compareTasks, dayFrom, dropPlace, droppedInto, dueLabel, inView, isOverdue, orderBetween, parseQuickAdd, sectionsOf, viewCount } from "./logic";
 import type { Task } from "./types";
 
 // A Friday afternoon.
@@ -151,5 +151,60 @@ describe("order by hand", () => {
     expect(orderBetween(undefined, 0)).toBe(-1024);
     expect(orderBetween(5, undefined)).toBe(1029);
     expect(orderBetween(undefined, undefined)).toBe(0);
+  });
+});
+
+describe("dragging a task into place", () => {
+  /** Where the tasks end up once the orders are applied, sorted as the list sorts them. */
+  const after = (list: Task[], moved: Task, sort: Parameters<typeof dropPlace>[2], beforeId: string | null) => {
+    const place = dropPlace(list, moved, sort, beforeId)!;
+    const all = [...list.filter((x) => x.id !== moved.id), moved].map((x) => ({ ...x, order: place.orders[x.id] ?? x.order }));
+    return { place, titles: titles(all.sort(compareTasks(sort))) };
+  };
+
+  it("goes where it's dropped in a list in its own order", () => {
+    const [a, b, c] = [task({ title: "A", order: 0 }), task({ title: "B", order: 1024 }), task({ title: "C", order: 2048 })];
+    expect(after([a, b, c], c, "manual", a.id).titles).toEqual(["C", "A", "B"]);
+    expect(after([a, b, c], a, "manual", null).titles).toEqual(["B", "C", "A"]);
+    expect(after([a, b, c], a, "manual", c.id).titles).toEqual(["B", "A", "C"]);
+  });
+
+  it("changes nothing dropped back where it was", () => {
+    const [a, b] = [task({ order: 0 }), task({ order: 1024 })];
+    expect(dropPlace([a, b], a, "manual", b.id)).toEqual({ before: b.id, orders: {} });
+    expect(dropPlace([a, b], a, "manual", a.id)).toEqual({ before: b.id, orders: {} });
+  });
+
+  it("sorted by date, moves among the tasks of its day and priority, and no further", () => {
+    const day = dayFrom(NOW, 0);
+    const high = task({ title: "High", due: day, priority: 3, order: 5000 });
+    const early = task({ title: "At nine", due: day, time: "09:00", order: 9000 });
+    const [a, b] = [task({ title: "A", due: day, order: 0 }), task({ title: "B", due: day, order: 1024 })];
+    const list = [early, high, a, b].sort(compareTasks("date"));
+    expect(titles(list)).toEqual(["At nine", "High", "A", "B"]);
+    // Dropped above the high-priority task, it stays below it, at the top of its own.
+    const top = after(list, b, "date", early.id);
+    expect(top.titles).toEqual(["At nine", "High", "B", "A"]);
+    expect(top.place.before).toBe(a.id);
+    expect(after(list, a, "date", null).titles).toEqual(["At nine", "High", "B", "A"]);
+  });
+
+  it("sorted by priority, takes the priority of the section it's dropped into", () => {
+    const [p3, p0a, p0b] = [task({ title: "Urgent", priority: 3, order: 0 }), task({ title: "A", order: 0 }), task({ title: "B", order: 1024 })];
+    const section = sectionsOf([p3, p0a, p0b], "inbox", "priority", NOW).find((s) => s.key === "p0")!;
+    const moved = droppedInto(section, p3);
+    expect(moved.priority).toBe(0);
+    expect(after(section.tasks, moved, "priority", p0b.id).titles).toEqual(["A", "Urgent", "B"]);
+  });
+
+  it("makes room between tasks with the same order", () => {
+    const [a, b, c] = [task({ title: "A", order: 0, createdAt: 3 }), task({ title: "B", order: 0, createdAt: 2 }), task({ title: "C", order: 0, createdAt: 1 })];
+    const { place, titles: got } = after([a, b, c], c, "manual", b.id);
+    expect(got).toEqual(["A", "C", "B"]);
+    expect(Object.keys(place.orders).length).toBeGreaterThan(1);
+  });
+
+  it("can't be put in order of its own by title", () => {
+    expect(dropPlace([task()], task(), "title", null)).toBeNull();
   });
 });
