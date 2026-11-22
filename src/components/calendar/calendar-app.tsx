@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, Menu, Plus, RefreshCw, Search } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Menu, RefreshCw, Search } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { addDays, formatTitle, sameDay, visibleDays } from "@/lib/calendar/dates";
 import { useCalendar, visibleEvents } from "@/lib/calendar/store";
@@ -10,7 +10,7 @@ import { LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
 import { Drawer } from "../mobile-shell";
-import { ModeSwitch } from "./calendar-sidebar";
+import { PhoneTabBar } from "../phone-tab-bar";
 import { Segmented, Tooltip } from "../ui";
 import { AddCalendarHost, MailboxCalendars, OtherWays } from "./add-calendar";
 import { CalendarSearch } from "./calendar-search";
@@ -211,7 +211,6 @@ export function MobileCalendar() {
         <button aria-label={t("Calendars")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
           <Menu size={19} />
         </button>
-        <ModeSwitch phone />
         <span className="flex-1" />
         {!empty && (
           <button aria-label={t("Search events")} onClick={openSearch} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
@@ -242,7 +241,7 @@ export function MobileCalendar() {
         </div>
       )}
       <div
-        className="mx-2 mb-[max(8px,var(--safe-bottom))] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid shadow-[var(--shadow-panel)]"
+        className="mx-2 mb-[calc(var(--tab-bar-space)+10px)] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid shadow-[var(--shadow-panel)]"
         onTouchStart={(e) => (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
         onTouchEnd={(e) => {
           const from = touch.current;
@@ -262,15 +261,7 @@ export function MobileCalendar() {
           <TimeGrid key={view} days={days} events={events} calendars={calendars} compact />
         )}
       </div>
-      {!empty && (
-        <button
-          aria-label={t("New event")}
-          onClick={() => newEvent()}
-          className="press absolute right-5 bottom-[max(22px,calc(var(--safe-bottom)+14px))] flex size-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-[var(--shadow-bar)] [--press-scale:0.9]"
-        >
-          <Plus size={24} />
-        </button>
-      )}
+      <PhoneTabBar action={empty ? null : { label: t("New event"), icon: <CalendarPlus size={25} />, run: () => newEvent() }} onReselect={goToday} />
       {searching && <CalendarSearch mobile />}
       <Drawer />
     </div>

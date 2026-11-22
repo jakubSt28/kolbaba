@@ -223,6 +223,7 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
         enterKeyHint="done"
         placeholder={list ? t("Add a task to {list}", { list: list.name }) : view === "inbox" ? t("Add a task to the Inbox") : t("Add a task for today")}
         aria-label={t("New task")}
+        data-quick-add
         className={cn("block min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-3", mobile ? "py-3" : "py-2.5")}
       />
       <div className={cn("flex shrink-0 items-center gap-0.5 transition-opacity", mobile ? "h-11" : "h-10", !mobile && !text && !picked.due && !picked.priority && "opacity-0 group-focus-within/add:opacity-100 group-hover/add:opacity-100")}>

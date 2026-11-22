@@ -17,6 +17,7 @@ import { CommandPalette } from "./command-palette";
 import { ConfirmHost } from "./confirm";
 import { closeSnoozeSheet, SnoozeSheetHost } from "./swipe-row";
 import { MessageList } from "./message-list";
+import { AppRail } from "./app-rail";
 import { MobileShell } from "./mobile-shell";
 import { Reader } from "./reader";
 import { watchShortViewport } from "@/lib/standalone-viewport";
@@ -263,11 +264,17 @@ export function MailApp() {
               </div>
               {calendar && <MobileCalendar />}
               {tasks && <MobileTasks />}
-              <Toaster className="fixed bottom-[calc(84px+var(--safe-bottom))]" />
+              <Toaster className="fixed bottom-[calc(var(--tab-bar-space)+12px)]" />
             </>
           ) : (
             <>
               <div className="canvas app-height desktop-shell flex gap-2 p-2">
+                {/* Mail, calendar and tasks: apps side by side, each a click away. */}
+                <aside className="w-[70px] shrink-0">
+                  <div className="glass h-full rounded-[18px]">
+                    <AppRail />
+                  </div>
+                </aside>
                 <aside className={narrow ? "w-[60px] shrink-0" : "w-[232px] shrink-0"}>
                   <div className="glass h-full rounded-[18px]">
                     <Sidebar collapsed={narrow} />

@@ -66,6 +66,13 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-22-phone-tab-bar",
+    date: "2026-11-22",
+    icon: "sidebar",
+    title: tk("Mail, calendar and tasks have their own bar: at the bottom of your phone, on the left of your computer"),
+    body: tk("On the phone, Mail, Calendar and Tasks now sit in a bar at the bottom, right under your thumb. The round button next to it writes a new message, adds an event or adds a task, depending on where you are. Search in the mail moved to the top: tap the magnifying glass. Tap the open tab again to go back to the top of the list, or to today in the calendar. On the computer they have their own column on the far left, with names and numbers."),
+  },
+  {
     id: "2026-11-18-task-drag-order",
     date: "2026-11-18",
     icon: "tasks",

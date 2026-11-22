@@ -69,6 +69,11 @@
   --shadow-float: 0 0 0 0.5px rgb(20 30 50 / 0.08), 0 2px 6px rgb(16 24 40 / 0.06),
     0 16px 40px -12px rgb(16 24 40 / 0.22);
   --shadow-bar: 0 0 0 1px rgb(20 30 50 / 0.11), 0 4px 12px rgb(16 24 40 / 0.1), 0 18px 44px -12px rgb(16 24 40 / 0.32);
+  --liquid: rgb(255 255 255 / 0.62);
+  --liquid-rim: inset 0 1px 1px rgb(255 255 255 / 0.95), inset 0 -1px 1px rgb(255 255 255 / 0.4), inset 0 0 0 0.5px rgb(255 255 255 / 0.6);
+  --liquid-shadow: 0 0 0 0.5px rgb(20 30 50 / 0.1), 0 1px 3px rgb(16 24 40 / 0.06), 0 10px 28px -8px rgb(16 24 40 / 0.24);
+  --liquid-lens: rgb(20 30 50 / 0.075);
+  --liquid-lens-rim: rgb(255 255 255 / 0.5);
   color-scheme: light;
 }
 
@@ -95,6 +100,11 @@
   --shadow-panel: 0 0 0 0.5px rgb(255 255 255 / 0.06), 0 12px 32px -16px rgb(0 0 0 / 0.6);
   --shadow-float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 16px 40px -12px rgb(0 0 0 / 0.7);
   --shadow-bar: 0 0 0 1px rgb(255 255 255 / 0.13), 0 18px 44px -12px rgb(0 0 0 / 0.8);
+  --liquid: rgb(44 48 58 / 0.6);
+  --liquid-rim: inset 0 1px 1px rgb(255 255 255 / 0.16), inset 0 -1px 1px rgb(255 255 255 / 0.05), inset 0 0 0 0.5px rgb(255 255 255 / 0.1);
+  --liquid-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 10px 28px -8px rgb(0 0 0 / 0.7);
+  --liquid-lens: rgb(255 255 255 / 0.1);
+  --liquid-lens-rim: rgb(255 255 255 / 0.06);
   color-scheme: dark;
 }
 
@@ -347,6 +357,29 @@ button:hover > .task-check:not([data-on]) {
   background: var(--solid);
   box-shadow: var(--shadow-bar);
 }
+/*
+ * Liquid glass (the phone's tab bar): clearer than .glass, with a bright rim where light catches the top
+ * edge and a soft shadow. Over white mail plain glass melted into the rows; the rim and the shadow keep
+ * its edge.
+ */
+.liquid-glass {
+  background: var(--liquid);
+  -webkit-backdrop-filter: blur(16px) saturate(190%);
+  backdrop-filter: blur(16px) saturate(190%);
+  box-shadow: var(--liquid-rim), var(--liquid-shadow);
+}
+/* The same glass tinted with the accent: the main action beside the tabs. */
+.liquid-glass-tint {
+  background: color-mix(in oklab, var(--accent) 88%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(190%);
+  backdrop-filter: blur(16px) saturate(190%);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.4), inset 0 -1px 1px rgb(255 255 255 / 0.12), inset 0 0 0 0.5px rgb(255 255 255 / 0.22), var(--liquid-shadow);
+}
+/* The pill under the open tab. */
+.liquid-lens {
+  background: var(--liquid-lens);
+  box-shadow: inset 0 0 0 0.5px var(--liquid-lens-rim);
+}
 .panel {
   background: var(--panel);
   box-shadow: var(--shadow-panel);
@@ -389,6 +422,11 @@ button:hover > .task-check:not([data-on]) {
 }
 :root[data-short-viewport] {
   --safe-bottom: 0px;
+}
+/* The phone's tab bar (src/components/phone-tab-bar.tsx): a bit into the home indicator's strip, as on iOS. Space = what it covers. */
+:root {
+  --tab-bar-bottom: max(12px, calc(var(--safe-bottom) - 8px));
+  --tab-bar-space: calc(var(--tab-bar-bottom) + 62px);
 }
 /*
  * The on-screen keyboard (src/lib/keyboard.ts). iOS doesn't shrink the page for it, it covers the bottom

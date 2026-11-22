@@ -55,7 +55,7 @@ import { LATEST_NOTE } from "@/lib/whats-new";
 import { droppedThreads, isThreadDrag } from "@/lib/drag-threads";
 import { useCalendar } from "@/lib/calendar/store";
 import { BrandMark } from "./brand-mark";
-import { CalendarSidebar, ModeSwitch } from "./calendar/calendar-sidebar";
+import { CalendarSidebar } from "./calendar/calendar-sidebar";
 import { TasksSidebar } from "./tasks/tasks-sidebar";
 import { openFolderDialog } from "./folders";
 import { installLabel, startInstall, useInstall } from "./install-guide";
@@ -115,7 +115,7 @@ const CATEGORIES: CategoryView[] = ["orders", "travel", "invoices", "subscriptio
 /** Every folder follows the mailbox picked in the switcher above them. Contacts and Files aren't folders: they're tools at the top. */
 const FOLDERS: FolderId[] = ["inbox", "unanswered", "pinned", "snoozed", "scheduled", "drafts", "sent", "archive", "lists", "spam", "trash"];
 
-/** `phone`: in the phone's drawer, where the Mail | Calendar | Tasks switch is at the top of the screen instead. */
+/** `phone`: in the phone's drawer, where the name sits at the top (the computer has it in the app rail). */
 export function Sidebar({ collapsed = false, phone = false, onNavigate }: { collapsed?: boolean; phone?: boolean; onNavigate?: () => void }) {
   const threads = useMail((s) => s.threads);
   const drafts = useMail((s) => s.drafts);
@@ -270,26 +270,24 @@ export function Sidebar({ collapsed = false, phone = false, onNavigate }: { coll
 
   return (
     <nav className={cn("group/nav flex h-full flex-col gap-1 px-2.5 pt-3 pb-2.5 select-none", collapsed && "items-center px-2")}>
-      <div className={cn("mb-2 flex items-center gap-1", collapsed && "flex-col gap-2")}>
-        {/* The name opens What's new and tips; a dot says there's something new. */}
-        <button
-          onClick={() => {
-            useMail.getState().setNewsOpen(unseenNews ? "news" : "tips");
-            onNavigate?.();
-          }}
-          aria-label={t("What's new and tips")}
-          className={cn("flex h-8 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-1.5 text-left transition-colors hover:bg-hover", collapsed && "flex-none justify-center px-0")}
-        >
-          <span className="relative inline-flex">
+      {/* On the computer the name is at the top of the app rail (src/components/app-rail.tsx); the phone's drawer has it here. */}
+      {phone && (
+        <div className="mb-2 flex items-center gap-1">
+          {/* The name opens What's new and tips; a dot says there's something new. */}
+          <button
+            onClick={() => {
+              useMail.getState().setNewsOpen(unseenNews ? "news" : "tips");
+              onNavigate?.();
+            }}
+            aria-label={t("What's new and tips")}
+            className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-1.5 text-left transition-colors hover:bg-hover"
+          >
             <BrandMark size={22} />
-            {unseenNews && collapsed && <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent ring-2 ring-[var(--glass-strong)]" />}
-          </span>
-          {!collapsed && <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{BRAND.name}</span>}
-          {!collapsed && unseenNews && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("New@@news")} />}
-        </button>
-        {/* Mail, calendar or tasks: three apps under one name. */}
-        {!editing && !phone && <ModeSwitch collapsed={collapsed} onSwitch={onNavigate} />}
-      </div>
+            <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{BRAND.name}</span>
+            {unseenNews && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("New@@news")} />}
+          </button>
+        </div>
+      )}
 
       {mode === "calendar" ? (
         <CalendarSidebar collapsed={collapsed} onNavigate={onNavigate} />

@@ -1,13 +1,12 @@
 "use client";
 
 import { CalendarDays, CalendarPlus, Check, CircleCheckBig, ChevronLeft, ChevronRight, Ellipsis, Link2, Mail, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
-import { motion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect, useMemo, useState } from "react";
 import { addMonths, dayKey, eventSpan, formatMonth, monthGrid, onDay, sameDay, startOfMonth, visibleDays, weekdayShort } from "@/lib/calendar/dates";
 import { calendarConnectUrl, todayLeft, useCalendar, visibleEvents, type AppMode } from "@/lib/calendar/store";
 import type { Calendar, CalendarSource, CalendarSuggestion } from "@/lib/calendar/types";
-import { t, tn } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { unreadCount, useMail } from "@/lib/store";
 import { dayFrom, isOpen } from "@/lib/tasks/logic";
 import { useTasks } from "@/lib/tasks/store";
@@ -15,18 +14,18 @@ import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { confirmAction } from "../confirm";
 import { FOLDER_HUES } from "../folders";
-import { hueStyle, MailboxBadge, menuContentClass, menuItemClass, spring, Tooltip } from "../ui";
+import { hueStyle, MailboxBadge, menuContentClass, menuItemClass, Tooltip } from "../ui";
 
 /* ---------------------------- Mail | Calendar | Tasks ---------------------------- */
 
-const MODES: { id: AppMode; icon: typeof Mail }[] = [
+export const MODES: { id: AppMode; icon: typeof Mail }[] = [
   { id: "mail", icon: Mail },
   { id: "calendar", icon: CalendarDays },
   { id: "tasks", icon: CircleCheckBig },
 ];
 
-/** How much waits in each: unread mail in the Inbox, what's left on today's calendar, the tasks due today. */
-function useModeCounts(): Record<AppMode, number> {
+/** How much waits in each (the app rail on the computer, the tab bar on the phone): unread mail in the Inbox, what's left on today's calendar, the tasks due today. */
+export function useModeCounts(): Record<AppMode, number> {
   const now = useNow();
   const mail = useMail((s) => unreadCount(s.threads, "all"));
   const calendar = useCalendar((s) => todayLeft(s, now));
@@ -56,65 +55,6 @@ function useModeCounts(): Record<AppMode, number> {
   }, []);
 
   return { mail, calendar, tasks };
-}
-
-/**
- * The switch next to the name: the mail, the calendar or the tasks. They're apps side by side, not folders of each other. Each says how much waits in it.
- * On the phone (`phone`) it sits at the top of each screen as a round glass pill, not in the drawer: one tap away, and in plain sight.
- */
-export function ModeSwitch({ collapsed, phone, onSwitch }: { collapsed?: boolean; phone?: boolean; onSwitch?: () => void }) {
-  const mode = useCalendar((s) => s.mode);
-  const setMode = useCalendar((s) => s.setMode);
-  const counts = useModeCounts();
-  return (
-    <div role="tablist" aria-label={t("Mail, calendar or tasks")} className={cn("relative flex shrink-0", phone ? "glass h-10 rounded-full p-[3px]" : "rounded-[10px] bg-hover p-0.5", collapsed && "flex-col")}>
-      {MODES.map((m) => {
-        const name = m.id === "mail" ? t("Mail@@mode") : m.id === "calendar" ? t("Calendar") : t("Tasks");
-        const n = counts[m.id];
-        const label = !n
-          ? name
-          : m.id === "mail"
-            ? tn(n, "Mail: {n} unread", "Mail: {n} unread")
-            : m.id === "calendar"
-              ? tn(n, "Calendar: {n} event left today", "Calendar: {n} events left today")
-              : tn(n, "Tasks: {n} for today", "Tasks: {n} for today");
-        return (
-          <Tooltip key={m.id} label={label} side={collapsed ? "right" : "bottom"}>
-            <button
-              role="tab"
-              aria-selected={mode === m.id}
-              aria-label={label}
-              onClick={() => {
-                setMode(m.id);
-                onSwitch?.();
-              }}
-              className={cn(
-                "press relative flex items-center justify-center [--press-scale:0.9]",
-                phone ? "h-[34px] w-10 rounded-full" : "h-7 w-8 rounded-[8px] pointer-coarse:h-8 pointer-coarse:w-10",
-              )}
-            >
-              {mode === m.id && (
-                <motion.span
-                  layoutId={phone ? "mode-switch-phone" : collapsed ? "mode-switch-narrow" : "mode-switch"}
-                  transition={spring}
-                  className={cn("absolute inset-0", phone ? "rounded-full bg-ink/[0.1]" : "rounded-[8px] bg-solid shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_var(--line)]")}
-                />
-              )}
-              <m.icon size={phone ? 17 : 15} strokeWidth={mode === m.id ? 2.2 : 1.9} className={cn("relative transition-colors", mode === m.id ? "text-ink" : "text-ink-3")} />
-              {n > 0 && (
-                <span
-                  aria-hidden
-                  className="absolute -top-1.5 -right-1 z-10 h-[15px] min-w-[15px] rounded-full bg-accent px-[4px] text-center text-[9.5px] leading-[15px] font-semibold text-on-accent tabular-nums ring-2 ring-[var(--glass-strong)]"
-                >
-                  {n > 99 ? "99+" : n}
-                </span>
-              )}
-            </button>
-          </Tooltip>
-        );
-      })}
-    </div>
-  );
 }
 
 /* --------------------------------- Sidebar --------------------------------- */

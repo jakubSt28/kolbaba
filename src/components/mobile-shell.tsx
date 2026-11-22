@@ -2,7 +2,8 @@
 
 import { ChevronDown, ChevronLeft, Menu, Pin, Search, SquarePen } from "lucide-react";
 import { AnimatePresence, motion, useDragControls } from "motion/react";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useCalendar } from "@/lib/calendar/store";
 import { isCategoryView } from "@/lib/insights";
@@ -43,8 +44,8 @@ import { SwipeDraftRow, SwipeRow } from "./swipe-row";
 import { ThreadView } from "./reader";
 import { ActivityView } from "./activity";
 import { AddAccountView } from "./add-account";
-import { ModeSwitch } from "./calendar/calendar-sidebar";
 import { MailboxPicker, ScopeBadge, useScopeLabel } from "./mailbox-switcher";
+import { PhoneTabBar } from "./phone-tab-bar";
 import { Sidebar } from "./sidebar";
 import { ClearSearch, MailboxBadge, spring } from "./ui";
 import { NoMailbox } from "./welcome";
@@ -214,6 +215,19 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
   const compose = useMail((s) => s.compose);
   const query = useMail((s) => s.query);
   const setQuery = useMail((s) => s.setQuery);
+  // Search sits at the top: a button that opens into a field over the header, and stays open while there's a query.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searching = searchOpen || !!query;
+  const searchInput = useRef<HTMLInputElement>(null);
+  const openSearch = () => {
+    // Rendered and focused within the tap: iOS brings the keyboard up only for a focus the finger caused.
+    flushSync(() => setSearchOpen(true));
+    searchInput.current?.focus({ preventScroll: true });
+  };
+  const closeSearch = () => {
+    setQuery("");
+    setSearchOpen(false);
+  };
   const scopeLabel = useScopeLabel();
   const noMailbox = useMail((s) => LIVE && s.ready && s.accounts.length === 0);
   const ready = useMail((s) => s.ready);
@@ -253,24 +267,33 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
           <SelectionTopBar count={checked.length} />
         ) : (
           <div className="sticky top-0 z-10 -mb-2 flex items-center gap-2 bg-linear-to-b from-canvas from-60% to-canvas/0 px-3 pt-[max(14px,env(safe-area-inset-top))] pb-3">
-            <button
-              aria-label={t("Folders")}
-              onClick={() => setDrawerOpen(true)}
-              className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink"
-            >
-              <Menu size={19} />
-            </button>
-            <ModeSwitch phone />
-            {/* The mailbox is the filter above every folder: always in reach, one tap to switch. */}
-            <button
-              aria-label={t("Mailbox: {name}", { name: scopeLabel })}
-              onClick={onPickMailbox}
-              className="glass flex h-10 min-w-0 items-center gap-1.5 rounded-full pr-2.5 pl-1.5 text-[14px] font-medium text-ink press [--press-scale:0.97]"
-            >
-              <ScopeBadge size={28} className="rounded-full" />
-              <span className="truncate">{scopeLabel}</span>
-              <ChevronDown size={15} className="shrink-0 text-ink-3" />
-            </button>
+            {searching ? (
+              <MailSearch query={query} setQuery={setQuery} input={searchInput} onDone={closeSearch} />
+            ) : (
+              <>
+                <button
+                  aria-label={t("Folders")}
+                  onClick={() => setDrawerOpen(true)}
+                  className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink"
+                >
+                  <Menu size={19} />
+                </button>
+                {/* The mailbox is the filter above every folder: always in reach, one tap to switch. */}
+                <button
+                  aria-label={t("Mailbox: {name}", { name: scopeLabel })}
+                  onClick={onPickMailbox}
+                  className="glass flex h-10 min-w-0 items-center gap-1.5 rounded-full pr-2.5 pl-1.5 text-[14px] font-medium text-ink press [--press-scale:0.97]"
+                >
+                  <ScopeBadge size={28} className="rounded-full" />
+                  <span className="truncate">{scopeLabel}</span>
+                  <ChevronDown size={15} className="shrink-0 text-ink-3" />
+                </button>
+                <span className="flex-1" />
+                <button aria-label={t("Search")} onClick={openSearch} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
+                  <Search size={18} />
+                </button>
+              </>
+            )}
           </div>
         )}
         <PullIndicator pull={pull} refreshing={refreshing} />
@@ -379,8 +402,8 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
         )}
       </div>
 
-      {selecting ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pt-3 pb-[max(14px,var(--safe-bottom))]">
+      {selecting && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pt-3 pb-[max(14px,var(--safe-bottom))]">
           <motion.div
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -390,29 +413,43 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
             <SelectionActions ids={checked} size={20} button={MobileAction} />
           </motion.div>
         </div>
-      ) : (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2.5 px-3 pt-3 pb-[max(14px,var(--safe-bottom))]">
-          {/* Opaque with a clear edge, like the reader's actions: over white mail, glass melted into the rows. */}
-          <label className="action-bar pointer-events-auto flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full px-4 text-ink-2">
-            <Search size={17} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("Search")}
-              className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3"
-            />
-            {query && <ClearSearch size={18} onClear={() => setQuery("")} />}
-          </label>
-          <button
-            aria-label={t("New message")}
-            onClick={() => compose()}
-            className="pointer-events-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent shadow-[var(--shadow-bar)] press [--press-scale:0.9]"
-          >
-            <SquarePen size={20} />
-          </button>
-        </div>
       )}
+      <PhoneTabBar
+        hidden={selecting}
+        action={{ label: t("New message"), icon: <SquarePen size={22} />, run: () => compose() }}
+        onReselect={() => scroller.current?.scrollTo({ top: 0, behavior: "smooth" })}
+      />
     </div>
+  );
+}
+
+/** The search field over the header, with Cancel to close it and clear what was searched for. */
+function MailSearch({ query, setQuery, input, onDone }: { query: string; setQuery: (q: string) => void; input: RefObject<HTMLInputElement | null>; onDone: () => void }) {
+  return (
+    <motion.div className="flex min-w-0 flex-1 items-center gap-2" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={spring}>
+      <label className="glass flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full pr-3 pl-3.5 text-ink-2">
+        <Search size={17} className="shrink-0" />
+        <input
+          ref={input}
+          type="search"
+          enterKeyHint="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          // Nothing typed and the keyboard put away: the button comes back.
+          onBlur={() => !query && onDone()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") onDone();
+          }}
+          placeholder={t("Search")}
+          className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3 [&::-webkit-search-cancel-button]:hidden"
+        />
+        {query && <ClearSearch size={18} onClear={() => setQuery("")} />}
+      </label>
+      <button onClick={onDone} className="glass press h-10 shrink-0 rounded-full px-4 text-[15px] font-medium text-accent-text">
+        {t("Cancel")}
+      </button>
+    </motion.div>
   );
 }
 

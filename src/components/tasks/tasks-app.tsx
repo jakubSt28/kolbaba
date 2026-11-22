@@ -12,10 +12,11 @@ import { isFolded, sortOf, useTasks } from "@/lib/tasks/store";
 import type { TaskSort, TaskView } from "@/lib/tasks/types";
 import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
-import { ModeSwitch } from "../calendar/calendar-sidebar";
+import { PhoneTabBar } from "../phone-tab-bar";
 import { confirmAction } from "../confirm";
 import { Drawer } from "../mobile-shell";
 import { menuContentClass, menuItemClass, Tooltip } from "../ui";
+import { TaskPlusIcon } from "./task-bits";
 import { TaskDetails } from "./task-details";
 import { TaskList, useSections, useViewTitle } from "./task-list";
 import { TaskSelectionBar, TaskSelectionTop, useChecked } from "./task-selection";
@@ -217,6 +218,7 @@ export function MobileTasks() {
   const setDrawerOpen = useMail((s) => s.setDrawerOpen);
   const close = () => useTasks.getState().select(null);
   const checked = useChecked();
+  const adds = view !== "completed" && view !== "trash";
 
   return (
     <div className="app-shell flex flex-col overflow-hidden bg-canvas">
@@ -227,15 +229,20 @@ export function MobileTasks() {
           <button aria-label={t("Lists")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
             <Menu size={19} />
           </button>
-          <ModeSwitch phone />
           <span className="flex-1" />
           <ViewMenus view={view} round />
         </div>
       )}
       <h1 className="shrink-0 truncate px-4 pb-2 text-[28px] leading-tight font-bold tracking-[-0.03em]">{title}</h1>
-      <div className="mx-2 mb-[max(8px,var(--safe-bottom))] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid pt-1 shadow-[var(--shadow-panel)]">
+      <div className="mx-2 mb-[calc(var(--tab-bar-space)+10px)] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid pt-1 shadow-[var(--shadow-panel)]">
         <TaskList mobile />
       </div>
+      <PhoneTabBar
+        hidden={checked.length > 0}
+        // The line to add a task is at the top of the list; the button puts the cursor there, keyboard and all.
+        action={adds ? { label: t("New task"), icon: <TaskPlusIcon size={25} />, run: () => document.querySelector<HTMLTextAreaElement>("[data-quick-add]")?.focus({ preventScroll: true }) } : null}
+        onReselect={() => document.querySelector("[data-task-scroller]")?.scrollTo({ top: 0, behavior: "smooth" })}
+      />
       {checked.length > 0 && <TaskSelectionBar ids={checked} />}
       <AnimatePresence>
         {selected && (

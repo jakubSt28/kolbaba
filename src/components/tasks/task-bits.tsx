@@ -15,6 +15,21 @@ import { menuContentClass, menuItemClass, Tooltip } from "../ui";
 /* -------------------------------- Tick box -------------------------------- */
 
 /** The box a task is ticked off in, in its priority's colour (red, amber, blue, grey). */
+/**
+ * "New task" in the style of Lucide's CalendarPlus: the Tasks tab's ticked circle (CircleCheckBig) with a plus
+ * where its lower right arc would be. Lucide has no such icon.
+ */
+export function TaskPlusIcon({ size = 24, strokeWidth = 2 }: { size?: number; strokeWidth?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M13.39 21.9A10 10 0 1 1 17 3.335" />
+      <path d="m9 11 3 3L22 4" />
+      <path d="M16 18h6" />
+      <path d="M19 15v6" />
+    </svg>
+  );
+}
+
 export function TaskCheck({ task, onToggle, size = 17, disabled }: { task: Pick<Task, "priority" | "completedAt">; onToggle: () => void; size?: number; disabled?: boolean }) {
   const done = task.completedAt !== null;
   return (

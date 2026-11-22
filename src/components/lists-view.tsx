@@ -266,10 +266,10 @@ export function ListsView({ mobile = false }: { mobile?: boolean }) {
             exit={{ opacity: 0, y: 12, scale: 0.97, transition: { duration: 0.15 } }}
             transition={spring}
             // At the bottom of the view however short the list is (mt-auto), and stuck there while it scrolls. On a
-            // phone just above the search bar: pinned to the screen, since the list's bottom padding would lift a sticky bar.
+            // phone just above the tab bar: pinned to the screen, since the list's bottom padding would lift a sticky bar.
             className={cn(
               "pointer-events-none z-20 flex justify-center px-3",
-              mobile ? "fixed inset-x-0 bottom-[calc(max(14px,var(--safe-bottom))+62px)]" : "sticky bottom-0 mt-auto pt-4",
+              mobile ? "fixed inset-x-0 bottom-[calc(var(--tab-bar-space)+10px)]" : "sticky bottom-0 mt-auto pt-4",
             )}
           >
             <div className="pointer-events-auto relative flex items-center gap-1 overflow-hidden rounded-full bg-accent py-1 pr-1 pl-4 text-[13px] text-on-accent shadow-[var(--shadow-float)]">
