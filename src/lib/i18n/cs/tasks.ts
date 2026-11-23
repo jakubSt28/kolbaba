@@ -20,6 +20,7 @@ export const tasks: Dictionary = {
 
   // A task
   "New task": "Nový úkol",
+  "Add task": "Přidat úkol",
   "Add a task to the Inbox": "Přidej úkol do Příchozích",
   "Add a task for today": "Přidej úkol na dnešek",
   "Mark as done": "Označit jako hotové",

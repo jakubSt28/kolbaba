@@ -4,6 +4,7 @@ import { Archive, ArchiveRestore, Clock, Inbox, Mail, MailOpen, Pin, ShieldCheck
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { memo, useEffect, useRef, useSyncExternalStore } from "react";
 import { create } from "zustand";
+import { useSwipe } from "@/lib/gestures";
 import { haptic } from "@/lib/haptics";
 import { t, tk, tn } from "@/lib/i18n";
 import { isBin, useMail } from "@/lib/store";
@@ -325,6 +326,7 @@ export function closeSnoozeSheet() {
 export function SnoozeSheetHost() {
   const ids = useSnoozeSheet((s) => s.ids);
   const close = () => useSnoozeSheet.setState({ ids: null });
+  const [sheet, y] = useSwipe({ way: "down", onSwipe: close, enabled: !!ids });
   const pick = (at: number) => {
     if (!ids) return;
     const s = useMail.getState();
@@ -346,11 +348,13 @@ export function SnoozeSheetHost() {
           />
           <motion.div
             key="snooze-sheet"
+            ref={sheet}
             className="glass-strong fixed inset-x-2 bottom-2 z-50 mx-auto max-w-[420px] rounded-[26px] p-2 pb-[max(8px,var(--safe-bottom))]"
             initial={{ y: "110%" }}
             animate={{ y: 0 }}
             exit={{ y: "110%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}
+            style={{ y }}
           >
             <div className="px-3 pt-1 pb-2 text-[12.5px] font-semibold text-ink-3">
               {ids.length > 1 ? tn(ids.length, "Snooze {n} conversation", "Snooze {n} conversations") : t("Snooze until")}

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect } from "react";
 import { useCalendar } from "@/lib/calendar/store";
+import { useSwipe } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
 import { sectionsOf } from "@/lib/tasks/logic";
@@ -14,7 +15,7 @@ import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
 import { PhoneTabBar } from "../phone-tab-bar";
 import { confirmAction } from "../confirm";
-import { Drawer } from "../mobile-shell";
+import { Drawer, useDrawerSwipe } from "../mobile-shell";
 import { menuContentClass, menuItemClass, Tooltip } from "../ui";
 import { TaskPlusIcon } from "./task-bits";
 import { TaskDetails } from "./task-details";
@@ -219,9 +220,10 @@ export function MobileTasks() {
   const close = () => useTasks.getState().select(null);
   const checked = useChecked();
   const adds = view !== "completed" && view !== "trash";
+  const screen = useDrawerSwipe(!checked.length && !selected);
 
   return (
-    <div className="app-shell flex flex-col overflow-hidden bg-canvas">
+    <div ref={screen} className="app-shell flex flex-col overflow-hidden bg-canvas">
       {checked.length > 0 ? (
         <TaskSelectionTop count={checked.length} />
       ) : (
@@ -244,21 +246,27 @@ export function MobileTasks() {
         onReselect={() => document.querySelector("[data-task-scroller]")?.scrollTo({ top: 0, behavior: "smooth" })}
       />
       {checked.length > 0 && <TaskSelectionBar ids={checked} />}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            className="absolute inset-0 z-30 bg-solid"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 420, damping: 40 }}
-          >
-            <TaskDetails mobile onBack={close} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{selected && <TaskScreen onBack={close} />}</AnimatePresence>
       <Drawer />
       <TickTickImportHost />
     </div>
+  );
+}
+
+/** A task's details over the list: back with the button or a swipe to the right from anywhere on it. */
+function TaskScreen({ onBack }: { onBack: () => void }) {
+  const [ref, x] = useSwipe({ way: "right", onSwipe: onBack });
+  return (
+    <motion.div
+      ref={ref}
+      className="absolute inset-0 z-30 bg-solid"
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={{ type: "spring", stiffness: 420, damping: 40 }}
+      style={{ x }}
+    >
+      <TaskDetails mobile onBack={onBack} />
+    </motion.div>
   );
 }

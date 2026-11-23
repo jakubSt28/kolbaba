@@ -3,6 +3,7 @@
 import { Inbox } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useState } from "react";
+import { useSwipe } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
@@ -114,11 +115,14 @@ export function WelcomeHost() {
     }
   };
 
+  // At the bottom of a phone's screen: a swipe down puts it away, as "Not now" does.
+  const [sheet] = useSwipe({ way: "down", onSwipe: dismiss, enabled: open, slideOut: true });
+
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && dismiss()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
-        <Dialog.Content className="glass-strong fixed inset-x-3 bottom-[max(12px,var(--safe-bottom))] z-50 mx-auto max-w-[400px] rounded-[26px] p-6 text-center outline-none data-[state=open]:animate-[menu-in_180ms_ease-out] sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2">
+        <Dialog.Content ref={sheet} className="glass-strong fixed inset-x-3 bottom-[max(12px,var(--safe-bottom))] z-50 mx-auto max-w-[400px] rounded-[26px] p-6 text-center outline-none data-[state=open]:animate-[menu-in_180ms_ease-out] sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2">
           <div className="mx-auto mb-4 flex w-fit">
             <BrandMark size={44} />
           </div>

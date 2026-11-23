@@ -8,6 +8,7 @@ import { eventSpan, formatWhen } from "@/lib/calendar/dates";
 import { describeRule } from "@/lib/calendar/recurrence";
 import { useCalendar } from "@/lib/calendar/store";
 import type { AttendeeStatus, CalEvent, EditScope } from "@/lib/calendar/types";
+import { useSwipe } from "@/lib/gestures";
 import { t, tk, tn } from "@/lib/i18n";
 import { useMail } from "@/lib/store";
 import { useNow } from "@/lib/use-now";
@@ -63,22 +64,7 @@ export function EventDetailsHost({ mobile }: { mobile: boolean }) {
         {open && event && (
           <>
             <motion.div className="fixed inset-0 z-40 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
-            <motion.div
-              className="glass-strong fixed inset-x-2 bottom-2 z-50 max-h-[80dvh] overflow-y-auto rounded-[26px] px-5 pt-3 pb-[max(18px,var(--safe-bottom))]"
-              initial={{ y: "110%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "110%" }}
-              transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.7 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 80 || info.velocity.y > 500) close();
-              }}
-            >
-              <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-ink/15" />
-              <EventDetails event={event} mobile />
-            </motion.div>
+            <DetailsSheet event={event} onClose={close} />
           </>
         )}
       </AnimatePresence>
@@ -101,6 +87,25 @@ export function EventDetailsHost({ mobile }: { mobile: boolean }) {
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+/** An event's details on a phone: a sheet from the bottom, which a swipe down closes once it's scrolled to its top. */
+function DetailsSheet({ event, onClose }: { event: CalEvent; onClose: () => void }) {
+  const [ref, y] = useSwipe({ way: "down", onSwipe: onClose });
+  return (
+    <motion.div
+      ref={ref}
+      className="glass-strong fixed inset-x-2 bottom-2 z-50 max-h-[80dvh] overflow-y-auto overscroll-contain rounded-[26px] px-5 pt-3 pb-[max(18px,var(--safe-bottom))]"
+      initial={{ y: "110%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "110%" }}
+      transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}
+      style={{ y }}
+    >
+      <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-ink/15" />
+      <EventDetails event={event} mobile />
+    </motion.div>
   );
 }
 

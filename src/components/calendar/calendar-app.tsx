@@ -5,11 +5,12 @@ import { useEffect, useMemo, useRef } from "react";
 import { addDays, formatTitle, sameDay, visibleDays } from "@/lib/calendar/dates";
 import { useCalendar, visibleEvents } from "@/lib/calendar/store";
 import type { CalendarView } from "@/lib/calendar/types";
+import { EDGE } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
 import { cn, isTypingTarget } from "@/lib/utils";
-import { Drawer } from "../mobile-shell";
+import { Drawer, useDrawerSwipe } from "../mobile-shell";
 import { PhoneTabBar } from "../phone-tab-bar";
 import { Segmented, Tooltip } from "../ui";
 import { AddCalendarHost, MailboxCalendars, OtherWays } from "./add-calendar";
@@ -204,9 +205,10 @@ export function MobileCalendar() {
   const touch = useRef<{ x: number; y: number } | null>(null);
   const today = days.some((d) => sameDay(d, new Date()));
   const empty = ready && !calendars.length;
+  const screen = useDrawerSwipe(!searching);
 
   return (
-    <div className="app-shell flex flex-col overflow-hidden bg-canvas">
+    <div ref={screen} className="app-shell flex flex-col overflow-hidden bg-canvas">
       <div className="flex shrink-0 items-center gap-2 px-3 pt-[max(14px,env(safe-area-inset-top))] pb-2">
         <button aria-label={t("Calendars")} onClick={() => setDrawerOpen(true)} className="glass press flex size-10 shrink-0 items-center justify-center rounded-full text-ink">
           <Menu size={19} />
@@ -242,7 +244,8 @@ export function MobileCalendar() {
       )}
       <div
         className="mx-2 mb-[calc(var(--tab-bar-space)+10px)] min-h-0 flex-1 overflow-hidden rounded-[20px] bg-solid shadow-[var(--shadow-panel)]"
-        onTouchStart={(e) => (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
+        // From the screen's left edge, a swipe opens the drawer instead.
+        onTouchStart={(e) => (touch.current = e.touches[0].clientX > EDGE ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null)}
         onTouchEnd={(e) => {
           const from = touch.current;
           touch.current = null;

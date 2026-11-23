@@ -1,6 +1,7 @@
 "use client";
 
-import { AlignLeft, ArchiveRestore, CalendarDays, Check, ChevronDown, ChevronRight, CircleCheckBig, GripVertical, Inbox, List, Plus, Repeat, Sun, Sunrise, Trash2, X } from "lucide-react";
+import { AlignLeft, ArchiveRestore, CalendarDays, Check, ChevronDown, ChevronRight, CircleCheckBig, GripVertical, Inbox, List, Plus, Repeat, Sun, Sunrise, Trash2, Undo2, X, type LucideIcon } from "lucide-react";
+import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { ContextMenu } from "radix-ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { create } from "zustand";
@@ -10,6 +11,7 @@ import { canReorder, isFolded, sortOf, useTasks } from "@/lib/tasks/store";
 import { PRIORITIES, TRASH_DAYS, viewListId, type Priority, type Task, type TaskList as TaskListType, type TaskView } from "@/lib/tasks/types";
 import { useNow } from "@/lib/use-now";
 import { track } from "@/lib/usage";
+import { EDGE } from "@/lib/gestures";
 import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { menuContentClass, menuItemClass, subTriggerClass } from "../ui";
@@ -155,7 +157,8 @@ function Empty({ view }: { view: TaskView }) {
 
 /* --------------------------------- Quick add -------------------------------- */
 
-/** "Add a task": Enter saves it and the line is ready for the next. Its day and priority can be picked, or typed at its end.
+/** "Add a task": Enter or the tick saves it. On a computer the line is then ready for the next; on a phone the keyboard
+ *  goes down, so the list it went into shows. Its day and priority can be picked, or typed at its end.
  *  A long title wraps onto more lines rather than sliding out of sight, so all of it can be read and tapped into. */
 function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
   const now = new Date(useNow());
@@ -191,7 +194,9 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
     if (parsed.due !== undefined || parsed.priority !== undefined) track("taskQuick");
     setText("");
     setPicked({});
+    if (mobile) input.current?.blur();
   };
+  const ready = !!parsed.title.trim();
 
   return (
     <form
@@ -246,6 +251,20 @@ function QuickAdd({ view, mobile }: { view: TaskView; mobile?: boolean }) {
             <PriorityFlag priority={priority} />
           </button>
         </PriorityMenu>
+        {ready && (
+          <button
+            type="submit"
+            aria-label={t("Add task")}
+            // On a computer the cursor stays in the line, for the next task.
+            onMouseDown={(e) => !mobile && e.preventDefault()}
+            className={cn(
+              "press ml-0.5 flex shrink-0 items-center justify-center rounded-full bg-accent text-on-accent [--press-scale:0.9] hover:bg-accent-hover",
+              mobile ? "size-8" : "size-7",
+            )}
+          >
+            <Check size={mobile ? 17 : 15} strokeWidth={2.6} />
+          </button>
+        )}
       </div>
     </form>
   );
@@ -613,8 +632,137 @@ function TaskRow({ task, mobile, line, onDragOver }: { task: Task; mobile?: bool
       </div>
     </div>
   );
-  // A phone has the long press instead: a right-click menu would open there too, small and in the way.
-  return mobile ? row : <TaskContextMenu task={task}>{row}</TaskContextMenu>;
+  // A phone has the long press and the swipes instead: a right-click menu would open there too, small and in the way.
+  return mobile ? (
+    <SwipeTask task={task} enabled={!picking && editing === null}>
+      {row}
+    </SwipeTask>
+  ) : (
+    <TaskContextMenu task={task}>{row}</TaskContextMenu>
+  );
+}
+
+/** How far a task is swiped before letting go does its action (as far as a conversation). */
+const SWIPE_AT = 88;
+
+interface SwipeAction {
+  label: string;
+  icon: LucideIcon;
+  tone: string;
+  run: () => void;
+  /** The task leaves the list: it slides out before the action. */
+  leaves?: boolean;
+}
+
+/**
+ * On a phone a task swipes like a conversation: to the right it's done (or not done again, or back
+ * from Trash), to the left it goes to Trash. Touch events, so a long press that's holding the task
+ * to move it, or a swipe in from the screen's edge to open the drawer, aren't taken for a swipe.
+ */
+function SwipeTask({ task, enabled, children }: { task: Task; enabled: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const trashed = task.deletedAt !== null;
+  const done = task.completedAt !== null;
+  const { complete, remove, restore } = useTasks.getState();
+  const right: SwipeAction = trashed
+    ? { label: t("Restore"), icon: ArchiveRestore, tone: "bg-accent text-on-accent", run: () => restore(task.id), leaves: true }
+    : { label: done ? t("Not done") : t("Done"), icon: done ? Undo2 : Check, tone: "bg-success text-white", run: () => complete(task.id, !done) };
+  const left: SwipeAction | null = trashed ? null : { label: t("Delete"), icon: Trash2, tone: "bg-danger text-white", run: () => remove(task.id), leaves: true };
+  const actions = useRef({ right, left, enabled });
+  useEffect(() => {
+    actions.current = { right, left, enabled };
+  });
+
+  const rightOpacity = useTransform(x, [12, 64], [0, 1]);
+  const leftOpacity = useTransform(x, [-64, -12], [1, 0]);
+  // Past the threshold the action is armed, and the phone taps.
+  const armed = useRef<"left" | "right" | null>(null);
+  useMotionValueEvent(x, "change", (v) => {
+    const side = v >= SWIPE_AT ? "right" : v <= -SWIPE_AT && actions.current.left ? "left" : null;
+    if (side === armed.current) return;
+    armed.current = side;
+    if (side) haptic("tick");
+  });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let touch: { x: number; y: number; decided: boolean | null } | null = null;
+    const start = (e: TouchEvent) => {
+      const f = e.touches.length === 1 ? e.touches[0] : null;
+      touch = f && actions.current.enabled && f.clientX > EDGE ? { x: f.clientX, y: f.clientY, decided: null } : null;
+    };
+    const move = (e: TouchEvent) => {
+      const f = e.touches[0];
+      if (!touch || touch.decided === false || !f) return;
+      const dx = f.clientX - touch.x;
+      const dy = f.clientY - touch.y;
+      if (touch.decided === null) {
+        if (Math.hypot(dx, dy) < 10) return;
+        // Held to be moved, a task follows the finger up and down instead.
+        touch.decided = !holding && Math.abs(dx) > Math.abs(dy) * 1.2;
+        if (!touch.decided) return;
+        x.stop();
+      }
+      if (e.cancelable) e.preventDefault();
+      const along = dx - Math.sign(dx) * 10;
+      x.set(along < 0 && !actions.current.left ? along * 0.15 : along);
+    };
+    const end = () => {
+      const was = touch;
+      touch = null;
+      if (!was?.decided) return;
+      const v = x.get();
+      const action = v >= SWIPE_AT ? actions.current.right : v <= -SWIPE_AT ? actions.current.left : null;
+      if (!action) return void animate(x, 0, { type: "spring", stiffness: 620, damping: 42 });
+      if (!action.leaves) {
+        haptic("soft");
+        action.run();
+        return void animate(x, 0, { type: "spring", stiffness: 620, damping: 42 });
+      }
+      const out = v < 0 ? -el.offsetWidth : el.offsetWidth;
+      void animate(x, out, { duration: 0.18, ease: [0.25, 0.6, 0.4, 1] }).then(() => {
+        action.run();
+        // Still here a moment later (Undo, or it didn't go): back in place.
+        setTimeout(() => x.jump(0), 400);
+      });
+    };
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end, { passive: true });
+    el.addEventListener("touchcancel", end, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
+  }, [x]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div aria-hidden className="absolute inset-0 flex overflow-hidden rounded-[10px]">
+        <motion.div style={{ opacity: rightOpacity }} className={cn("flex flex-1 items-center pl-5", right.tone)}>
+          <span className="flex flex-col items-center gap-0.5 text-[11px] font-medium">
+            <right.icon size={19} />
+            {right.label}
+          </span>
+        </motion.div>
+        {left && (
+          <motion.div style={{ opacity: leftOpacity }} className={cn("flex flex-1 items-center justify-end pr-5", left.tone)}>
+            <span className="flex flex-col items-center gap-0.5 text-[11px] font-medium">
+              <left.icon size={19} />
+              {left.label}
+            </span>
+          </motion.div>
+        )}
+      </div>
+      <motion.div style={{ x }} className="relative rounded-[10px] bg-solid">
+        {children}
+      </motion.div>
+    </div>
+  );
 }
 
 /** How far into the clicked words the click landed, so the caret goes there. */

@@ -1,15 +1,17 @@
 "use client";
 
 import { ChevronDown, ChevronLeft, Menu, Pin, Search, SquarePen } from "lucide-react";
-import { AnimatePresence, motion, useDragControls } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useCalendar } from "@/lib/calendar/store";
+import { EDGE, useSwipe } from "@/lib/gestures";
 import { isCategoryView } from "@/lib/insights";
 import { t, tk } from "@/lib/i18n";
 import { folderLabel, isBin, lastMessage, listedMessage, useMail, type Signature } from "@/lib/store";
 import { LIVE } from "@/lib/live";
+import type { Tab } from "@/lib/types";
 import { useTasks } from "@/lib/tasks/store";
 import { cn, dateGroup } from "@/lib/utils";
 import { Composer } from "./editor/composer";
@@ -117,37 +119,47 @@ export function MobileShell() {
       <AnimatePresence>
         {pushed && <DetailScreen key={pushed.id} tabId={pushed.id} threadId={pushed.kind === "thread" ? pushed.threadId : undefined} contactId={pushed.kind === "contact" ? pushed.contactId : undefined} />}
       </AnimatePresence>
-      <AnimatePresence>
-        {sheet && (
-          <motion.div
-            key={sheet.id}
-            className="absolute inset-x-0 top-[max(12px,env(safe-area-inset-top))] bottom-0 z-30 flex flex-col overflow-hidden rounded-t-[22px] bg-solid shadow-[var(--shadow-float)]"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={pushSpring}
-          >
-            <SheetHeader tabId={sheet.id} title={sheet.kind === "draft" ? t("New message") : sheet.kind === "activity" ? t("Activity") : t("Add mailbox")} />
-            <div className="min-h-0 flex-1">
-              {sheet.kind === "draft" ? (
-                <Composer draftId={sheet.draftId} variant="sheet" />
-              ) : sheet.kind === "activity" ? (
-                <ActivityView />
-              ) : (
-                <AddAccountView tabId={sheet.id} prefill={sheet.email} />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{sheet && <Sheet key={sheet.id} tab={sheet} />}</AnimatePresence>
       <Drawer />
       <MailboxSheet open={picking} onClose={() => setPicking(false)} />
     </div>
   );
 }
 
+type SheetTab = Exclude<Tab, { kind: "thread" | "contact" }>;
+
+/** A new message, Activity or Add mailbox: a sheet from the bottom, which a swipe down closes. */
+function Sheet({ tab }: { tab: SheetTab }) {
+  const closeTab = useMail((s) => s.closeTab);
+  // A new message only from its header: in the text, a pull down is scrolling or putting the keyboard away.
+  const [ref, y] = useSwipe({ way: "down", onSwipe: () => closeTab(tab.id), handle: tab.kind === "draft" ? "[data-sheet-header]" : undefined });
+  return (
+    <motion.div
+      ref={ref}
+      className="absolute inset-x-0 top-[max(12px,env(safe-area-inset-top))] bottom-0 z-30 flex flex-col overflow-hidden rounded-t-[22px] bg-solid shadow-[var(--shadow-float)]"
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={pushSpring}
+      style={{ y }}
+    >
+      <SheetHeader tabId={tab.id} title={tab.kind === "draft" ? t("New message") : tab.kind === "activity" ? t("Activity") : t("Add mailbox")} />
+      <div className="min-h-0 flex-1">
+        {tab.kind === "draft" ? (
+          <Composer draftId={tab.draftId} variant="sheet" />
+        ) : tab.kind === "activity" ? (
+          <ActivityView />
+        ) : (
+          <AddAccountView tabId={tab.id} prefill={tab.email} />
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 /** The mailbox picker as a bottom sheet: the same list as the desktop switcher, sized for a thumb. */
 function MailboxSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [ref, y] = useSwipe({ way: "down", onSwipe: onClose, enabled: open });
   return (
     <AnimatePresence>
       {open && (
@@ -160,17 +172,13 @@ function MailboxSheet({ open, onClose }: { open: boolean; onClose: () => void })
             onClick={onClose}
           />
           <motion.div
-            className="glass-strong absolute inset-x-2 bottom-2 z-50 max-h-[75dvh] overflow-y-auto rounded-[26px] px-2 pt-2 pb-[max(8px,var(--safe-bottom))]"
+            ref={ref}
+            className="glass-strong absolute inset-x-2 bottom-2 z-50 max-h-[75dvh] overflow-y-auto overscroll-contain rounded-[26px] px-2 pt-2 pb-[max(8px,var(--safe-bottom))]"
             initial={{ y: "110%" }}
             animate={{ y: 0 }}
             exit={{ y: "110%" }}
             transition={pushSpring}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.7 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 80 || info.velocity.y > 500) onClose();
-            }}
+            style={{ y }}
           >
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-ink/15" />
             <div className="px-2 pb-1 text-[12.5px] font-semibold text-ink-3">{t("Show mail from")}</div>
@@ -185,7 +193,7 @@ function MailboxSheet({ open, onClose }: { open: boolean; onClose: () => void })
 function SheetHeader({ tabId, title }: { tabId: string; title: string }) {
   const closeTab = useMail((s) => s.closeTab);
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
+    <div data-sheet-header className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
       <button onClick={() => closeTab(tabId)} className="text-[16px] text-accent-text active:opacity-60">
         {t("Close")}
       </button>
@@ -209,6 +217,7 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
   const checked = useMail(useShallow((s) => s.checked.filter((id) => s.threads[id] || s.drafts[id])));
   const selecting = checked.length > 0;
   const { pull, refreshing } = usePullToRefresh(scroller, !selecting);
+  const screen = useDrawerSwipe(!selecting);
   const folder = useMail((s) => s.folder);
   const account = useMail((s) => s.accounts.find((a) => a.id === s.scope));
   const setDrawerOpen = useMail((s) => s.setDrawerOpen);
@@ -261,7 +270,7 @@ function ListScreen({ onPickMailbox }: { onPickMailbox: () => void }) {
   }, [items, folder, bundling, fold]);
 
   return (
-    <div className="absolute inset-0 flex flex-col">
+    <div ref={screen} className="absolute inset-0 flex flex-col">
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-32">
         {selecting ? (
           <SelectionTopBar count={checked.length} />
@@ -500,30 +509,20 @@ function DetailScreen({ tabId, threadId, contactId }: { tabId: string; threadId?
   const closeTab = useMail((s) => s.closeTab);
   const folder = useMail((s) => s.folder);
   const thread = useMail((s) => (threadId ? s.threads[threadId] : undefined));
-  const controls = useDragControls();
   const back = () => closeTab(tabId);
+  // Back with a swipe to the right from anywhere on the conversation, not just its edge.
+  const [ref, x] = useSwipe({ way: "right", onSwipe: back });
 
   return (
     <motion.div
+      ref={ref}
       className="absolute inset-0 z-20 flex flex-col bg-solid shadow-[-12px_0_40px_rgb(0_0_0/0.12)]"
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={pushSpring}
-      drag="x"
-      dragListener={false}
-      dragControls={controls}
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={{ left: 0, right: 1 }}
-      onDragEnd={(_, info) => {
-        if (info.offset.x > 90 || info.velocity.x > 500) back();
-      }}
+      style={{ x }}
     >
-      <div
-        className="absolute inset-y-0 left-0 z-30 w-5"
-        onPointerDown={(e) => controls.start(e)}
-        style={{ touchAction: "none" }}
-      />
       <div className="flex shrink-0 items-center justify-between px-2 pt-[max(14px,env(safe-area-inset-top))] pb-1">
         <button onClick={back} className="flex h-10 items-center gap-0.5 rounded-full pr-3 pl-1 text-[16px] text-accent-text active:opacity-60">
           <ChevronLeft size={24} />
@@ -544,10 +543,17 @@ function MobileThread({ threadId }: { threadId: string }) {
 
 /* --------------------------------- Drawer --------------------------------- */
 
+/** A swipe in from the left edge of a list (the mail, the calendar, the tasks) opens the drawer. */
+export function useDrawerSwipe(enabled = true) {
+  const setOpen = useMail((s) => s.setDrawerOpen);
+  return useSwipe({ way: "right", edge: EDGE, follow: false, enabled, onSwipe: () => setOpen(true) })[0];
+}
+
 /** The sidebar as a drawer from the left; the calendar on a phone uses it too. */
 export function Drawer() {
   const open = useMail((s) => s.drawerOpen);
   const setOpen = useMail((s) => s.setDrawerOpen);
+  const [ref, x] = useSwipe({ way: "left", onSwipe: () => setOpen(false), enabled: open });
   return (
     <AnimatePresence>
       {open && (
@@ -561,17 +567,13 @@ export function Drawer() {
           />
           {/* Below the status bar: in the Home Screen app iOS paints that strip in one colour (#top-edge). */}
           <motion.aside
+            ref={ref}
             className="glass-strong absolute top-[max(12px,env(safe-area-inset-top))] bottom-0 left-0 z-50 w-[82%] max-w-[320px] rounded-r-[24px] pb-[var(--safe-bottom)]"
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={pushSpring}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={{ left: 0.8, right: 0 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -70 || info.velocity.x < -400) setOpen(false);
-            }}
+            style={{ x }}
           >
             <Sidebar phone onNavigate={() => setOpen(false)} />
           </motion.aside>

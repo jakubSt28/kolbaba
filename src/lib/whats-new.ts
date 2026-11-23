@@ -66,6 +66,13 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-23-phone-swipes",
+    date: "2026-11-23",
+    icon: "swipe",
+    title: tk("Swipe to go back and to close things on your phone"),
+    body: tk("On the phone, swipe right anywhere on an email, a task or a page of Settings to go back, not just from the edge. Swipe down to close a sheet: Settings, an event, the mailbox picker and more. Swipe in from the left edge to open the side menu. Swipe a task right to tick it off, or left to delete it. Adding a task now has a tick next to the field, and the keyboard goes down once it's added."),
+  },
+  {
     id: "2026-11-22-phone-tab-bar",
     date: "2026-11-22",
     icon: "sidebar",

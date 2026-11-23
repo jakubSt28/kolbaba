@@ -26,12 +26,13 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion, useDragControls } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Dialog, DropdownMenu, Popover } from "radix-ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { addPasskey, confirmWithCode, confirmWithPasskey, sendConfirmCode, signOut } from "@/components/auth/auth-client";
 import { LegalLinks, SourceCodeLink } from "@/components/legal-links";
 import { ACCENTS, BRAND } from "@/lib/brand";
+import { useSwipe } from "@/lib/gestures";
 import { detectLocale, getLocale, LANGUAGE_SETTINGS, t, tk, tn, type LanguageSetting, type Locale } from "@/lib/i18n";
 import { api, clearSnapshots, LIVE } from "@/lib/live";
 import { UNDO_SEND_CHOICES, useMail } from "@/lib/store";
@@ -167,7 +168,7 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
 /**
  * On the phone: the sections as a list, like the iOS Settings app, each on its own screen (back
- * with the button or a swipe from the left edge). Opened at a section, it goes straight there.
+ * with the button or a swipe to the right). A swipe down closes it. Opened at a section, it goes straight there.
  */
 function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const requested = useMail((s) => s.settingsSection);
@@ -177,7 +178,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
     setOpened({ open, requested });
     if (open) setSection(requested && SECTIONS.some((s) => s.id === requested) ? (requested as Section) : null);
   }
-  const controls = useDragControls();
+  const [sheet, y] = useSwipe({ way: "down", onSwipe: onClose, enabled: open });
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -202,6 +203,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
             onClick={onClose}
           />
           <motion.div
+            ref={sheet}
             role="dialog"
             aria-modal="true"
             aria-label={t("Settings")}
@@ -210,6 +212,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={pushSpring}
+            style={{ y }}
           >
             <div className="relative flex h-12 shrink-0 items-center justify-between px-2">
               {current ? (
@@ -228,27 +231,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <AnimatePresence initial={false}>
                 {current ? (
-                  <motion.div
-                    key={current.id}
-                    className="absolute inset-0 bg-canvas"
-                    initial={{ x: "100%" }}
-                    animate={{ x: 0 }}
-                    exit={{ x: "100%" }}
-                    transition={pushSpring}
-                    drag="x"
-                    dragListener={false}
-                    dragControls={controls}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={{ left: 0, right: 1 }}
-                    onDragEnd={(_, info) => {
-                      if (info.offset.x > 90 || info.velocity.x > 500) setSection(null);
-                    }}
-                  >
-                    <div className="absolute inset-y-0 left-0 z-10 w-5" onPointerDown={(e) => controls.start(e)} style={{ touchAction: "none" }} />
-                    <div className="h-full overflow-y-auto overscroll-contain px-4 pt-2 pb-[max(24px,var(--safe-bottom))]">
-                      <SectionContent section={current.id} mobile />
-                    </div>
-                  </motion.div>
+                  <SectionPage key={current.id} section={current.id} onBack={() => setSection(null)} />
                 ) : (
                   <motion.div
                     key="sections"
@@ -267,6 +250,26 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+/** A section on its own screen, over the list: back with a swipe to the right from anywhere on it. */
+function SectionPage({ section, onBack }: { section: Section; onBack: () => void }) {
+  const [ref, x] = useSwipe({ way: "right", onSwipe: onBack });
+  return (
+    <motion.div
+      ref={ref}
+      className="absolute inset-0 bg-canvas"
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={pushSpring}
+      style={{ x }}
+    >
+      <div className="h-full overflow-y-auto overscroll-contain px-4 pt-2 pb-[max(24px,var(--safe-bottom))]">
+        <SectionContent section={section} mobile />
+      </div>
+    </motion.div>
   );
 }
 

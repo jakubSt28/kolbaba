@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/lib/i18n";
 import { LIVE } from "@/lib/live";
+import { forwardSwipes } from "@/lib/gestures";
 import { keepTextReadable, pinColorScheme } from "@/lib/mail-contrast";
 import { useMail } from "@/lib/store";
 import { useDarkTheme } from "@/lib/theme";
@@ -74,6 +75,7 @@ function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boole
     if (!frame) return;
     let observer: ResizeObserver | undefined;
     let raf = 0;
+    let unforward = () => {};
     const measure = () => {
       const d = frame.contentDocument;
       if (!d?.body) return;
@@ -84,6 +86,9 @@ function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boole
     const onLoad = () => {
       const body = frame.contentDocument?.body;
       if (body && !rich) keepTextReadable(body, cssVar("--solid"));
+      // A swipe back on the phone also works over the email itself.
+      unforward();
+      unforward = forwardSwipes(frame);
       measure();
       if (body) {
         // A new zoom resizes the body; done inside the observer's callback, that would be a resize loop.
@@ -97,6 +102,7 @@ function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boole
     frame.addEventListener("load", onLoad);
     return () => {
       frame.removeEventListener("load", onLoad);
+      unforward();
       observer?.disconnect();
       cancelAnimationFrame(raf);
     };

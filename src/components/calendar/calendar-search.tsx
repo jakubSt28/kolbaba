@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { eventSpan, formatWhen } from "@/lib/calendar/dates";
 import { useCalendar } from "@/lib/calendar/store";
 import type { CalEvent } from "@/lib/calendar/types";
+import { useSwipe } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { track } from "@/lib/usage";
 import { useNow } from "@/lib/use-now";
@@ -36,6 +37,9 @@ export function CalendarSearch({ mobile }: { mobile?: boolean }) {
     list.current?.querySelector(`[data-row="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
+  // On a phone it covers the calendar: a swipe to the right closes it, like going back.
+  const [screen] = useSwipe({ way: "right", onSwipe: closeSearch, enabled: !!mobile && !!search, slideOut: true });
+
   if (!search) return null;
 
   const pick = (event: CalEvent) => {
@@ -44,7 +48,7 @@ export function CalendarSearch({ mobile }: { mobile?: boolean }) {
   };
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col", mobile && "absolute inset-0 z-30 bg-canvas pt-[max(10px,env(safe-area-inset-top))]")}>
+    <div ref={screen} className={cn("flex h-full min-h-0 flex-col", mobile && "absolute inset-0 z-30 bg-canvas pt-[max(10px,env(safe-area-inset-top))]")}>
       {/* As wide as the list under it, so what's typed sits right above what's found. */}
       <div className={cn("mx-auto flex w-full shrink-0 items-center gap-2", mobile ? "px-3 pb-2" : "h-14 max-w-[784px] px-3")}>
         <label className={cn("flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] bg-hover px-3 transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--accent)]", mobile ? "h-11" : "h-9")}>

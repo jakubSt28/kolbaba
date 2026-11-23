@@ -8,6 +8,7 @@ import { presetOf, REPEAT_LABELS, REPEAT_PRESETS, ruleFor, type RepeatPreset } f
 import { useCalendar } from "@/lib/calendar/store";
 import type { Calendar, CalendarSource, EventInput } from "@/lib/calendar/types";
 import { t } from "@/lib/i18n";
+import { useSwipe } from "@/lib/gestures";
 import { LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -24,11 +25,14 @@ const EMAIL = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 export function EventEditorHost({ mobile }: { mobile: boolean }) {
   const editor = useCalendar((s) => s.editor);
   const close = useCalendar((s) => s.closeEditor);
+  // On a phone a swipe down on its header closes it, as its X does; not in the form, where it's scrolling.
+  const [sheet] = useSwipe({ way: "down", onSwipe: close, enabled: mobile && !!editor, slideOut: true, handle: "[data-sheet-header]" });
   return (
     <Dialog.Root open={!!editor} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
         <Dialog.Content
+          ref={sheet}
           aria-describedby={undefined}
           // The title is where typing starts; on a phone the keyboard waits until a field is tapped.
           onOpenAutoFocus={(e) => mobile && e.preventDefault()}
@@ -133,7 +137,7 @@ function EditorForm({ eventId, initial, mobile }: { eventId?: string; initial: E
         }
       }}
     >
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-4 pb-1">
+      <div data-sheet-header className="flex shrink-0 items-center gap-2 px-5 pt-4 pb-1">
         <Dialog.Title className="flex-1 text-[13px] font-medium text-ink-3">{eventId ? t("Edit event") : t("New event")}</Dialog.Title>
         <Dialog.Close aria-label={t("Close")} className="-mr-2 flex size-8 items-center justify-center rounded-[9px] text-ink-3 transition-colors hover:bg-hover hover:text-ink">
           <X size={16} />

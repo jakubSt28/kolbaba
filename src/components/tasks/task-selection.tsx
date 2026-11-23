@@ -4,6 +4,7 @@ import { ArchiveRestore, CalendarDays, Check, Flag, List, Sun, Sunrise, Trash2, 
 import { AnimatePresence, motion } from "motion/react";
 import { useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useSwipe } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { dayFrom, priorityLabel } from "@/lib/tasks/logic";
 import { useTasks } from "@/lib/tasks/store";
@@ -144,6 +145,7 @@ function SheetItem({ className, onSelect, children }: { className?: string; onSe
 
 /** A sheet from the bottom of the screen, like the one for snoozing mail. */
 function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const [ref, y] = useSwipe({ way: "down", onSwipe: onClose, enabled: open });
   return (
     <AnimatePresence>
       {open && (
@@ -151,6 +153,7 @@ function Sheet({ open, title, onClose, children }: { open: boolean; title: strin
           <motion.div key="scrim" className="fixed inset-0 z-50 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.div
             key="sheet"
+            ref={ref}
             role="dialog"
             aria-label={title}
             className="glass-strong fixed inset-x-2 bottom-2 z-50 mx-auto max-w-[420px] rounded-[26px] p-2 pb-[max(8px,var(--safe-bottom))]"
@@ -158,6 +161,7 @@ function Sheet({ open, title, onClose, children }: { open: boolean; title: strin
             animate={{ y: 0 }}
             exit={{ y: "110%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}
+            style={{ y }}
           >
             <div className="px-3 pt-1 pb-2 text-[12.5px] font-semibold text-ink-3">{title}</div>
             {children}

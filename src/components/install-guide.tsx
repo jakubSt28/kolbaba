@@ -4,6 +4,7 @@ import { Bell, Check, Compass, Copy, Dock, EllipsisVertical, Info, MonitorDown, 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
+import { useSwipe } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
 import { browserGuide, canPromptInstall, installGuide, installOffer, isMac, isStandalone, onInstallChange, promptInstall, type InstallGuide, type InstallOffer } from "@/lib/install";
 import { enablePush, type PushState } from "@/lib/push-client";
@@ -283,6 +284,8 @@ export function InstallGuideHost({ mobile }: { mobile: boolean }) {
     return () => window.removeEventListener("appinstalled", onInstalled);
   }, [pushToast]);
 
+  const [sheet, sheetY] = useSwipe({ way: "down", onSwipe: closeGuide, enabled: !!guide && mobile });
+
   if (!mobile) {
     return (
       <AnimatePresence>
@@ -328,6 +331,7 @@ export function InstallGuideHost({ mobile }: { mobile: boolean }) {
           />
           <motion.div
             key="install-sheet"
+            ref={sheet}
             role="dialog"
             aria-modal
             aria-labelledby="install-guide-title"
@@ -336,12 +340,7 @@ export function InstallGuideHost({ mobile }: { mobile: boolean }) {
             animate={{ y: 0 }}
             exit={{ y: "110%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.7 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 80 || info.velocity.y > 500) closeGuide();
-            }}
+            style={{ y: sheetY }}
           >
             <GuideBody guide={guide} onDone={closeGuide} mobile />
           </motion.div>
