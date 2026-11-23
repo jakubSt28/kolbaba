@@ -1,6 +1,8 @@
 "use client";
 
+import { Settings2 } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 import { useCalendar } from "@/lib/calendar/store";
 import { t, tn } from "@/lib/i18n";
 import { useMail } from "@/lib/store";
@@ -8,12 +10,14 @@ import { cn } from "@/lib/utils";
 import { LATEST_NOTE } from "@/lib/whats-new";
 import { BrandMark } from "./brand-mark";
 import { MODES, useModeCounts } from "./calendar/calendar-sidebar";
+import { NavIcon, PlayContext } from "./nav-icon";
 import { spring, Tooltip } from "./ui";
 
 /**
  * The computer's column of apps, left of the sidebar: Kolbaba's mark (What's new and tips), then the mail,
- * the calendar and the tasks as apps side by side, each with what waits in it. On the phone they're the tab
- * bar at the bottom instead (src/components/phone-tab-bar.tsx).
+ * the calendar and the tasks as apps side by side, each with what waits in it, and Settings at the bottom.
+ * On the phone they're the tab bar at the bottom instead (src/components/phone-tab-bar.tsx), and Settings
+ * stays in the drawer's foot.
  */
 export function AppRail() {
   const mode = useCalendar((s) => s.mode);
@@ -86,6 +90,32 @@ export function AppRail() {
           );
         })}
       </div>
+      <RailSettings />
     </nav>
+  );
+}
+
+/** Settings at the foot of the rail, drawn like the apps above it so the column reads as one. */
+function RailSettings() {
+  const open = useMail((s) => s.settingsOpen);
+  const [play, setPlay] = useState(0);
+  return (
+    <Tooltip label={t("Settings")} shortcut="⌘," side="right">
+      <button
+        onClick={() => {
+          setPlay((p) => p + 1);
+          useMail.getState().setSettingsOpen(true);
+        }}
+        aria-label={t("Settings")}
+        className="press group mt-auto flex w-[58px] flex-col items-center gap-1 [--press-scale:0.94]"
+      >
+        <span className={cn("flex h-9 w-12 items-center justify-center rounded-[12px] transition-colors", open ? "bg-hover" : "group-hover:bg-hover")}>
+          <PlayContext.Provider value={play}>
+            <NavIcon icon={Settings2} gesture="tune" size={20} className={cn("transition-colors", open ? "text-ink" : "text-ink-2 group-hover:text-ink")} />
+          </PlayContext.Provider>
+        </span>
+        <span className={cn("max-w-full truncate text-[11px] leading-none font-semibold transition-colors", open ? "text-ink" : "text-ink-3 group-hover:text-ink-2")}>{t("Settings")}</span>
+      </button>
+    </Tooltip>
   );
 }

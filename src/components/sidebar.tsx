@@ -418,7 +418,7 @@ export function Sidebar({ collapsed = false, phone = false, onNavigate }: { coll
         </>
       )}
 
-      <SidebarFoot collapsed={collapsed} onNavigate={onNavigate} />
+      <SidebarFoot collapsed={collapsed} phone={phone} onNavigate={onNavigate} />
     </nav>
   );
 }
@@ -792,11 +792,12 @@ function NavRow({
 }
 
 /**
- * The sidebar's foot: Settings, and next to it What's new and tips, the collection and Suggest an
- * improvement as small icons (a dot when something new waits). On touch, where there are no
- * tooltips, all four are one row of tiles with short names; in the narrow sidebar, icons stacked.
+ * The sidebar's foot: What's new and tips, the collection and Suggest an improvement as small icons
+ * (a dot when something new waits), and in the phone's drawer Settings before them (the computer has
+ * Settings at the foot of the app rail, src/components/app-rail.tsx). On touch, where there are no
+ * tooltips, they're one row of tiles with short names; in the narrow sidebar, icons stacked.
  */
-function SidebarFoot({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+function SidebarFoot({ collapsed, phone, onNavigate }: { collapsed: boolean; phone: boolean; onNavigate?: () => void }) {
   const unseenNews = useMail((s) => s.newsSeen !== null && s.newsSeen !== LATEST_NOTE);
   // A stamp that came quietly (there's one card a day) waits in the album, marked new.
   const unseenStamps = useMail((s) => s.stampsOn && Object.values(s.stamps).some((at) => at > s.stampsSeen));
@@ -823,7 +824,6 @@ function SidebarFoot({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
       <div className="pt-2">
         {install}
         {rows}
-        <SettingsButton collapsed onNavigate={onNavigate} />
       </div>
     );
   const settings = { key: "settings", icon: Settings2, gesture: "tune" as const, label: t("Settings"), short: t("Settings"), run: () => useMail.getState().setSettingsOpen(true) };
@@ -831,14 +831,16 @@ function SidebarFoot({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
     <div className="pt-2">
       {install}
       <div className="hidden grid-cols-4 gap-1 pointer-coarse:grid">
-        {[...items, settings].map((i) => (
+        {(phone ? [...items, settings] : items).map((i) => (
           <FootTile key={i.key} icon={i.icon} gesture={i.gesture} label={i.short} dot={"dot" in i ? i.dot : undefined} onClick={i.run} onNavigate={onNavigate} />
         ))}
       </div>
       <div className="flex items-center gap-0.5 pointer-coarse:hidden">
-        <div className="min-w-0 flex-1">
-          <SettingsButton collapsed={false} onNavigate={onNavigate} />
-        </div>
+        {phone && (
+          <div className="min-w-0 flex-1">
+            <SettingsButton onNavigate={onNavigate} />
+          </div>
+        )}
         {items.map((i) => (
           <FootIcon key={i.key} icon={i.icon} gesture={i.gesture} label={i.label} dot={i.dot} onClick={i.run} onNavigate={onNavigate} />
         ))}
@@ -966,32 +968,22 @@ function FooterButton({
   );
 }
 
-function SettingsButton({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+function SettingsButton({ onNavigate }: { onNavigate?: () => void }) {
   const setSettingsOpen = useMail((s) => s.setSettingsOpen);
   const [play, setPlay] = useState(0);
-  const button = (
+  return (
     <button
       onClick={() => {
         setPlay((p) => p + 1);
         setSettingsOpen(true);
         onNavigate?.();
       }}
-      className={cn(
-        "flex h-[34px] w-full items-center gap-2.5 rounded-[10px] px-1.5 text-[13.5px] text-ink-2 transition-colors hover:bg-hover",
-        collapsed && "w-9 justify-center px-0",
-      )}
+      className="flex h-[34px] w-full items-center gap-2.5 rounded-[10px] px-1.5 text-[13.5px] text-ink-2 transition-colors hover:bg-hover"
     >
       <PlayContext.Provider value={play}>
         <NavIcon icon={Settings2} gesture="tune" />
       </PlayContext.Provider>
-      {!collapsed && <span className="flex-1 text-left">{t("Settings")}</span>}
+      <span className="flex-1 text-left">{t("Settings")}</span>
     </button>
-  );
-  return collapsed ? (
-    <Tooltip label={t("Settings")} shortcut="⌘," side="right">
-      {button}
-    </Tooltip>
-  ) : (
-    button
   );
 }
