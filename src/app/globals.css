@@ -436,6 +436,8 @@ button:hover > .task-check:not([data-on]) {
  */
 :root[data-keyboard] {
   --safe-bottom: 0px;
+  /* The tab bar hides under the keyboard (keyboard:invisible): what it held drops down onto the keyboard. */
+  --tab-bar-space: 0px;
 }
 :root[data-keyboard] .app-shell {
   top: var(--visible-top, 0px);
