@@ -62,8 +62,8 @@ zařízení? Přihlašovací odkaz na jedno použití dá server:
 docker compose exec kolbaba kolbaba-link
 ```
 
-Účet pro další osobu na stejném serveru: `kolbaba-link --new`. Přihlášení k jednomu z více účtů:
-`kolbaba-link adresa@example.com`.
+Účet pro další osobu na stejném serveru: `kolbaba-link --new`, nebo `kolbaba-link --new adresa@example.com`
+pro odkaz, který funguje jen pro tuhle adresu. Přihlášení k jednomu z více účtů: `kolbaba-link adresa@example.com`.
 
 Chceš i přihlašovací kódy e-mailem? V `.env` vyplň `SMTP_URL` a `MAIL_FROM`.
 

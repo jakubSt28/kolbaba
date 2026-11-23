@@ -64,8 +64,8 @@ server gives you a one-time sign-in link:
 docker compose exec kolbaba kolbaba-link
 ```
 
-An account for another person on the same server: `kolbaba-link --new`. Signing in to one of several accounts:
-`kolbaba-link address@example.com`.
+An account for another person on the same server: `kolbaba-link --new`, or `kolbaba-link --new address@example.com`
+for a link that works only for that address. Signing in to one of several accounts: `kolbaba-link address@example.com`.
 
 Want sign-in codes by email too? Fill in `SMTP_URL` and `MAIL_FROM` in `.env`.
 

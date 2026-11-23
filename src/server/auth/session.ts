@@ -10,6 +10,7 @@ import { requestLocale } from "../i18n";
 import { LEGACY_SESSION_COOKIE_NAME, SECURE_COOKIES, SESSION_COOKIE_NAME } from "./cookie-name";
 import { assertSameOrigin } from "./origin";
 import { logError } from "../log";
+import { stopSessionPush } from "../push";
 
 export { HttpError };
 
@@ -77,7 +78,12 @@ export async function currentSessionId(): Promise<string | null> {
 export async function destroySession() {
   const jar = await cookies();
   const found = sessionToken(jar);
-  if (found) await db().delete(schema.sessions).where(eq(schema.sessions.id, hashToken(found.token)));
+  if (found) {
+    const id = hashToken(found.token);
+    await db().delete(schema.sessions).where(eq(schema.sessions.id, id));
+    // Even when the browser couldn't unsubscribe first (offline, a plain form post), the device stops getting mail previews.
+    await stopSessionPush(id);
+  }
   clearSessionCookies(jar);
 }
 

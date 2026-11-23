@@ -203,9 +203,10 @@ function cleanCss(input: string, ctx: CssContext): string {
     .replace(/expression\s*\(/gi, "invalid(")
     .replace(/(^|[;{\s])(behavior|-moz-binding)\s*:[^;}]*/gi, "$1")
     .replace(/position\s*:\s*fixed/gi, "position:static")
-    .replace(/(-webkit-)?image-set\s*\(([^()]|\([^()]*\))*\)/gi, (all) =>
-      /(javascript|vbscript):/i.test(all) || (!ctx.allowRemote && /(https?:)?\/\//i.test(all)) ? "none" : all,
-    );
+    // image-set() takes bare strings as URLs, which the url() check below never sees, and it nests
+    // (gradients, var()) beyond what a regex can follow. Email clients don't support it anyway, so the
+    // declaration is made invalid and the browser drops it.
+    .replace(/(-webkit-)?image-set\s*\(/gi, "invalid(");
   css = css.replace(/url\(\s*(['"]?)([\s\S]*?)\1\s*\)/gi, (_all, _q: string, raw: string) => {
     const url = raw.trim();
     if (isDataImage(url)) return `url("${url.replace(/["\\]/g, "")}")`;
@@ -229,6 +230,48 @@ function cleanCss(input: string, ctx: CssContext): string {
     return `url("${abs.replace(/["\\]/g, "")}")`;
   });
   return css;
+}
+
+/**
+ * The candidates of a srcset ("a.png 1x, b.png 2x"), keeping only absolute http(s) URLs (https when
+ * protocol-relative) and data:image, without trackers or our own pixel. Parsed the way
+ * browsers do it, so commas inside data: URLs stay part of the URL. Empty when nothing is left.
+ */
+function cleanSrcset(value: string, opts: SanitizeOptions, onTracker: (name: string) => void): string {
+  const kept: string[] = [];
+  let i = 0;
+  while (i < value.length) {
+    while (i < value.length && /[\s,]/.test(value[i])) i++;
+    if (i >= value.length) break;
+    let url = "";
+    while (i < value.length && !/\s/.test(value[i])) url += value[i++];
+    let descriptor = "";
+    if (/,+$/.test(url)) url = url.replace(/,+$/, "");
+    else {
+      let depth = 0;
+      while (i < value.length && (value[i] !== "," || depth > 0)) {
+        if (value[i] === "(") depth++;
+        else if (value[i] === ")") depth = Math.max(0, depth - 1);
+        descriptor += value[i++];
+      }
+    }
+    descriptor = descriptor.trim();
+    if (!/^(\d+(\.\d+)?[wx])?$/i.test(descriptor)) continue;
+    if (url.includes("\\")) continue;
+    let out: string;
+    if (isDataImage(url)) out = url;
+    else if (isRemote(url)) {
+      out = absolutize(url);
+      if (opts.ownPixelPrefix && out.startsWith(opts.ownPixelPrefix)) continue;
+      const tracker = trackerFor(out);
+      if (tracker) {
+        onTracker(tracker);
+        continue;
+      }
+    } else continue;
+    kept.push(descriptor ? `${out} ${descriptor}` : out);
+  }
+  return kept.join(", ");
 }
 
 /** Inside raw-text `<style>`, a literal `<` is the only way to smuggle markup; CSS never needs one. */
@@ -300,6 +343,12 @@ export function sanitizeIncoming(html: string, opts: SanitizeOptions): SanitizeR
         // Relative URLs would hit our own origin from the srcdoc iframe; javascript: etc. are junk.
         delete attribs.src;
       }
+      if (attribs.srcset != null) {
+        // The same rules as src, for every candidate: relative paths and `https:\\host` tricks go.
+        const srcset = cleanSrcset(attribs.srcset, opts, (tracker) => trackers.add(tracker));
+        if (srcset) attribs.srcset = srcset;
+        else delete attribs.srcset;
+      }
       if (!opts.allowRemoteImages) {
         let blocked = false;
         if (attribs.src && isRemote(attribs.src)) {
@@ -307,7 +356,7 @@ export function sanitizeIncoming(html: string, opts: SanitizeOptions): SanitizeR
           delete attribs.src;
           blocked = true;
         }
-        if (attribs.srcset && /(https?:)?\/\//i.test(attribs.srcset)) {
+        if (attribs.srcset && /https?:\/\//i.test(attribs.srcset)) {
           attribs["data-blocked-srcset"] = attribs.srcset;
           delete attribs.srcset;
           blocked = true;

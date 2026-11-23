@@ -5,6 +5,7 @@ import { Tooltip } from "radix-ui";
 import { useEffect } from "react";
 import { watchForUpdates } from "@/lib/app-update";
 import { watchForCodes } from "@/lib/codes";
+import { takeConnectMessage } from "@/lib/connect-message";
 import { getLocale, resolveLocale, setLocale, t } from "@/lib/i18n";
 import { fetchThread, LIVE } from "@/lib/live";
 import { pushState, registerServiceWorker, setBadge } from "@/lib/push-client";
@@ -45,7 +46,7 @@ const ACTIVITY = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 /**
  * Links into the app: notifications open `/?thread=…`, `/?activity` (an agent's action), `/?settings` or
  * `/?calendar=2026-11-12&event=…` (a reminder), `/?tasks`,
- * the Gmail connect flow comes back with `?connected=…` or `?connect_error=…`, and a new version loads
+ * the Gmail connect flow comes back with `?connected=…` or `?connect` (its message in a cookie), and a new version loads
  * where you were with `?mailbox=…&folder=…&thread=…` (src/lib/app-update.ts). Handle them once, then
  * clean the address bar.
  */
@@ -58,6 +59,8 @@ function closeOverlays() {
 
 async function handleDeepLink(url: URL) {
   const p = url.searchParams;
+  // Sentences from the way back from Google or Microsoft come in a cookie only our server sets, never from the link.
+  const said = p.has("connect") ? takeConnectMessage() : {};
   const { openThread, pushToast, setFolder, setScope } = useMail.getState();
   const raw = p.get("thread");
   // Ids only: a link must not steer the app's requests to some other API path.
@@ -87,7 +90,7 @@ async function handleDeepLink(url: URL) {
   if (p.has("calendar")) {
     closeOverlays();
     openCalendarLink(p.get("calendar"), p.get("event"));
-    const added = p.get("calendar_connected");
+    const added = said.calendar_connected;
     if (added) pushToast({ message: t("The calendars of {name} are here", { name: added }) });
   }
   const connected = p.get("connected");
@@ -95,9 +98,9 @@ async function handleDeepLink(url: URL) {
     const account = useMail.getState().accounts.find((a) => a.id === connected);
     pushToast({ message: `${account?.name ?? "Mailbox"} connected · importing your mail` });
   }
-  const error = p.get("connect_error");
+  const error = said.connect_error;
   if (error) pushToast({ message: error, duration: 8000 });
-  const notice = p.get("connect_notice");
+  const notice = said.connect_notice;
   if (notice) pushToast({ message: notice, duration: 8000 });
   // A Microsoft 365 organisation has to approve Kolbaba once: the link for its IT admin.
   const admin = p.get("connect_admin");

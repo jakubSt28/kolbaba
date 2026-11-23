@@ -84,9 +84,10 @@ services:
       - caddy_data:/data
 
   # Installs new versions at night. Leave "autoupdate" out of COMPOSE_PROFILES to update by hand.
-  # (The community fork: the original Watchtower was archived in December 2025.)
+  # (The community fork: the original Watchtower was archived in December 2025.) A fixed version, not
+  # :latest: it holds the Docker socket, so a new release of it is something to choose, not to receive.
   watchtower:
-    image: nickfedor/watchtower:latest
+    image: nickfedor/watchtower:1.24.0
     profiles: [autoupdate]
     restart: unless-stopped
     environment:

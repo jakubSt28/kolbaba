@@ -11,6 +11,8 @@ export const auth: Dictionary = {
   "It's how you'll sign in from now on: Face ID, Touch ID or your screen lock. There's no password to forget.":
     "Tímhle se budeš od teď přihlašovat: Face ID, Touch ID nebo zámek obrazovky. Žádné heslo k zapamatování.",
   "This link signs you in as {email}.": "Tenhle odkaz tě přihlásí jako {email}.",
+  "This link is for {email}.": "Tenhle odkaz je pro {email}.",
+  "For the admin's account, make a link for that address on the server: kolbaba-link --new {email}": "Pro účet správce vytvoř na serveru odkaz pro tuhle adresu: kolbaba-link --new {email}",
   "On your server, run {command} and open the new link.": "Na serveru spusť {command} a otevři nový odkaz.",
   "Create the account for this server. Only you hold the data.": "Založ si účet na tomhle serveru. Data máš jen ty.",
   "This link has expired or was already used. Make a new one on your server.": "Tenhle odkaz vypršel, nebo už byl použitý. Vytvoř si na serveru nový.",

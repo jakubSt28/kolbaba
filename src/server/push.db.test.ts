@@ -23,7 +23,11 @@ const DOMAIN = "push-test.invalid";
 let userId = "";
 const endpoint = (name: string) => `https://web.push.apple.com/${DOMAIN}/${name}`;
 
-async function subscribe(name: string, sessionId: string | null, daysAgo: number) {
+async function subscribe(name: string, sessionId: string | null, daysAgo: number, sessionExpired = false) {
+  if (sessionId) {
+    const expiresAt = new Date(Date.now() + (sessionExpired ? -1 : 1) * 24 * 3600_000);
+    await db().insert(schema.sessions).values({ id: sessionId, userId, expiresAt }).onConflictDoNothing();
+  }
   await db()
     .insert(schema.pushSubscriptions)
     .values({ userId, endpoint: endpoint(name), p256dh: "k", auth: "a", sessionId, createdAt: new Date(Date.now() - daysAgo * 24 * 3600_000) });
@@ -63,5 +67,15 @@ describe("notifyUser", () => {
     await notifyUser(userId, { title: "Hi", body: "" });
     expect(sent).toEqual([endpoint("mac-old")]);
     expect(await left()).toEqual([endpoint("mac-old")]);
+  });
+
+  it("stops at devices whose sign-in ended, and forgets them", async () => {
+    await subscribe("live", "sess-live", 1);
+    await subscribe("expired", "sess-expired", 1, true);
+    await subscribe("legacy", null, 30);
+    await db().insert(schema.pushSubscriptions).values({ userId, endpoint: endpoint("signed-out"), p256dh: "k", auth: "a", sessionId: "sess-deleted" });
+    await notifyUser(userId, { title: "Hi", body: "" });
+    expect(sent.sort()).toEqual([endpoint("legacy"), endpoint("live")]);
+    expect(await left()).toEqual([endpoint("legacy"), endpoint("live")]);
   });
 });

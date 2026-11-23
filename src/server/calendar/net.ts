@@ -2,7 +2,7 @@ import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
-import { resolvePublic } from "../autodetect/probe";
+import { resolvePublic, resolvesOffMachine } from "../autodetect/probe";
 import { env } from "../env";
 
 /**
@@ -37,12 +37,16 @@ const DNS_TIMEOUT_MS = 5000;
 
 /**
  * The address has to be https and public; returns the address the name resolved to. A self-hosted copy
- * may call anything (people run their own servers at home) and gets null.
+ * may call its owner's network, over http too (people run their own servers at home), and gets null,
+ * but never this machine itself or a link-local address (the app's own ports, a cloud's metadata).
  */
 async function check(url: URL, resolve: (host: string) => Promise<string | null>): Promise<string | null> {
   if (url.protocol !== "https:" && !(url.protocol === "http:" && env.selfHosted)) throw new Error("Only https addresses are allowed");
-  if (env.selfHosted) return null;
   const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (env.selfHosted) {
+    if (!(await resolvesOffMachine(host, DNS_TIMEOUT_MS))) throw new Error(`${url.hostname} is this server itself`);
+    return null;
+  }
   const address = await resolve(host);
   if (!address) throw new Error(`${url.hostname} is not a public address`);
   return address;
@@ -114,7 +118,7 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
  *  resolve to a public address (resolvePublic), https only (http allowed only when env.selfHosted), follows up to 5
  *  redirects by hand re-checking every hop, drops the Authorization header when a redirect leaves the origin, enforces a
  *  timeout (default 15 s) and a response size cap (default 10 MB; read the body through the cap and throw when exceeded).
- *  When env.selfHosted, private addresses are allowed (people run their own servers at home). */
+ *  When env.selfHosted, private addresses are allowed (people run their own servers at home), but not loopback or link-local. */
 export async function safeFetch(url: string, init: SafeFetchInit = {}, deps: SafeFetchDeps = {}): Promise<SafeResponse> {
   const fetchFn = deps.fetch ?? fetch;
   const resolve = deps.resolve ?? ((host: string) => resolvePublic(host, DNS_TIMEOUT_MS));

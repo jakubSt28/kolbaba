@@ -237,6 +237,7 @@ export const quiet: Dictionary = {
   "Before you continue: in Outlook on the web, turn on Settings → Mail → Forwarding and IMAP → Let devices and apps use IMAP.":
     "Než budeš pokračovat: v Outlooku na webu zapni Nastavení → Pošta → Předávání a IMAP → Povolit zařízením a aplikacím používat IMAP.",
   "Microsoft sign-in was cancelled": "Přihlášení přes Microsoft bylo zrušeno",
+  "Outlook isn't available yet": "Outlook zatím není k dispozici",
   "Couldn't connect the Microsoft mailbox. Please try again.": "Schránku od Microsoftu se nepodařilo připojit. Zkus to prosím znovu.",
   "Approved for your organisation. People there can connect their mailboxes now.": "Schváleno pro tvoji organizaci. Lidé z ní si teď můžou připojit schránky.",
   "The approval didn't go through. Try again.": "Schválení neprošlo. Zkus to znovu.",

@@ -108,6 +108,27 @@ describe("sanitizeIncoming: images", () => {
     expect(r.html).toContain(".hero{background:none}");
   });
 
+  it("doesn't let image-set or srcset load anything around the block", () => {
+    const r = sanitizeIncoming(
+      `<div style="background-image:image-set(linear-gradient(rgba(0,0,0,0),red) 1x, 'https://evil.example/p.png' 2x)">a</div>` +
+        `<style>div{background:-webkit-image-set(linear-gradient(rgba(0,0,0,0),red) 1x, "https://evil.example/q.png" 2x)}</style>` +
+        '<img src="data:image/png;base64,AA" srcset="/api/auth/logout 1x">' +
+        '<img src="data:image/png;base64,AA" srcset="https:\\\\evil.example/y 2x">' +
+        '<img src="data:image/png;base64,AA" srcset="data:image/png;base64,BB 1x, //cdn.example.com/c@2x.png 2x">',
+      opts({ allowRemoteImages: false }),
+    );
+    expect(r.html).not.toMatch(/image-set/i);
+    expect(r.html).not.toContain("/api/auth/logout");
+    expect(r.html).not.toContain("evil.example/y");
+    expect(r.html).not.toMatch(/\ssrcset=/);
+    expect(r.html).toContain('data-blocked-srcset="data:image/png;base64,BB 1x, https://cdn.example.com/c@2x.png 2x"');
+  });
+
+  it("drops trackers from a srcset when images are allowed", () => {
+    const html = clean(`<img src="https://cdn.example.com/a.png" width="300" srcset="https://cdn.example.com/a@2x.png 2x, ${OWN}abc.gif 3x">`);
+    expect(html).toContain('srcset="https://cdn.example.com/a@2x.png 2x"');
+  });
+
   it("loads remote images when allowed", () => {
     const r = sanitizeIncoming('<img src="https://cdn.example.com/a.png" width="300">', opts());
     expect(r.blockedImages).toBe(0);

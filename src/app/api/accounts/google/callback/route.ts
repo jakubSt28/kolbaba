@@ -11,6 +11,7 @@ import { connectOAuth } from "@/server/calendar/service";
 import { CalendarAuthError } from "@/server/calendar/types";
 import { exchangeGmailCode } from "@/server/google";
 import { HttpError } from "@/server/http-error";
+import { connectRedirect } from "@/server/connect-result";
 import { requestLocale } from "@/server/i18n";
 import { upsertAccount } from "@/server/mail/accounts";
 import { MailAuthError } from "@/server/mail/types";
@@ -26,7 +27,7 @@ const COOKIE = pathCookie("kolbaba_mailbox_oauth");
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const locale = requestLocale(req);
-  const back = (params: Record<string, string>) => Response.redirect(new URL(`/?${new URLSearchParams(params)}`, req.url), 303);
+  const back = (params: Record<string, string>) => connectRedirect(req, params);
 
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;

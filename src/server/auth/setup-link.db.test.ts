@@ -11,11 +11,11 @@ let seq = 0;
 const address = (label: string) => `${label}-${Date.now()}-${seq++}@${DOMAIN}`;
 
 /** What `kolbaba-link` writes (worker/login-link.ts). */
-async function link(userId?: string, ttlMs = 3600_000) {
+async function link(userId?: string, ttlMs = 3600_000, email?: string) {
   const token = randomToken();
   await db()
     .insert(schema.authChallenges)
-    .values({ id: hashToken(token), kind: "setup-link", challenge: "", data: userId ? { userId } : {}, expiresAt: new Date(Date.now() + ttlMs) });
+    .values({ id: hashToken(token), kind: "setup-link", challenge: "", data: userId ? { userId } : email ? { email } : {}, expiresAt: new Date(Date.now() + ttlMs) });
   return token;
 }
 
@@ -57,6 +57,21 @@ describe("setup link", () => {
     const token = await link();
     await expect(redeemSetupLink(token, { email, name: "X" })).rejects.toMatchObject({ code: "account_exists" });
     expect((await redeemSetupLink(token, { email: address("free"), name: "X" })).name).toBe("X");
+  });
+
+  it("makes an admin's account only from a link made for that address", async () => {
+    const admin = address("admin");
+    process.env.ADMIN_EMAILS = admin;
+    try {
+      const open = await link();
+      await expect(redeemSetupLink(open, { email: admin, name: "Not me" })).rejects.toMatchObject({ code: "setup_link_admin" });
+      const named = await link(undefined, 3600_000, admin);
+      expect(await peekSetupLink(named)).toEqual({ mode: "new", email: admin });
+      await expect(redeemSetupLink(named, { email: address("other"), name: "X" })).rejects.toMatchObject({ code: "setup_link_email" });
+      expect((await redeemSetupLink(named, { email: admin.toUpperCase(), name: "Owner" })).email).toBe(admin);
+    } finally {
+      delete process.env.ADMIN_EMAILS;
+    }
   });
 
   it("refuses an unknown or expired link", async () => {

@@ -7,6 +7,7 @@ import { resolvePublic } from "../autodetect/probe";
 import { db, schema } from "../db";
 import { HttpError } from "../http-error";
 import { logWarn } from "../log";
+import { limit, LIMITS } from "../rate-limit";
 import { withAdapter } from "./adapters";
 import { senderThreads } from "./screener-actions";
 
@@ -24,6 +25,8 @@ export async function unsubscribe(
     .from(schema.threads)
     .where(and(eq(schema.threads.id, threadId), eq(schema.threads.userId, userId)));
   if (!thread) throw new HttpError(404, "That conversation no longer exists", "not_found");
+  // Here and not in the routes, so an agent over MCP is held to it as well.
+  await limit(LIMITS.unsubscribe(userId));
   const options = parseListUnsubscribe(thread.listUnsubscribe);
 
   let method: "one-click" | "email" | null = null;
@@ -58,7 +61,8 @@ export async function unsubscribe(
 /**
  * POST `List-Unsubscribe=One-Click` to the list's https address. The address comes from an email, so
  * it must not reach our own network: https on 443 only, the host resolved once to a public address
- * and the connection pinned to it, no redirects followed, a short timeout.
+ * and the connection pinned to it, no redirects followed. One deadline for the whole exchange (a server
+ * dripping bytes can't hold the socket), and the body is never read: the status is all we need.
  */
 export async function oneClick(address: string, timeoutMs = 10_000): Promise<void> {
   const url = new URL(address);
@@ -74,6 +78,7 @@ export async function oneClick(address: string, timeoutMs = 10_000): Promise<voi
     else callback(null, ip, family);
   };
   await new Promise<void>((resolve, reject) => {
+    const deadline = setTimeout(() => req.destroy(new Error("Timed out")), timeoutMs);
     const req = request(
       url,
       {
@@ -86,14 +91,18 @@ export async function oneClick(address: string, timeoutMs = 10_000): Promise<voi
         },
       },
       (res) => {
-        res.resume();
+        clearTimeout(deadline);
         const status = res.statusCode ?? 0;
+        req.destroy();
         if (status >= 200 && status < 400) resolve();
         else reject(new Error(`HTTP ${status}`));
       },
     );
     req.on("timeout", () => req.destroy(new Error("Timed out")));
-    req.on("error", reject);
+    req.on("error", (err) => {
+      clearTimeout(deadline);
+      reject(err);
+    });
     req.end("List-Unsubscribe=One-Click");
   });
 }

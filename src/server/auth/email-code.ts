@@ -25,7 +25,10 @@ import { assertSignupAllowed, findOrCreateUser, findUserByEmail, normalizeEmail 
 
 export const EMAIL_CODE_TTL_MS = 15 * 60_000;
 
-type CodeData = { email: string; verified?: boolean };
+type CodeData = { email: string; verified?: boolean; wrong?: number };
+
+/** Wrong tries one code survives; then it's gone and a new one has to be asked for. */
+export const MAX_WRONG_PER_CODE = 5;
 
 /** Keyed with our secret: a million possible codes would be quick to try against a plain hash. */
 const codeHash = (email: string, code: string) => hmac(`${email}:${code}`);
@@ -79,6 +82,20 @@ async function load(token: string | undefined, kind: ChallengeKind) {
 const forget = (id: string) => db().delete(schema.authChallenges).where(eq(schema.authChallenges.id, id));
 
 /**
+ * Counts a wrong code against that code: after a few, it stops working, so guessing means asking for
+ * new codes (which the owner of the address sees arrive) on top of the per-address limits.
+ */
+async function wrongTry(id: string, data: CodeData): Promise<HttpError> {
+  const wrong = (data.wrong ?? 0) + 1;
+  if (wrong >= MAX_WRONG_PER_CODE) {
+    await forget(id);
+    return new HttpError(400, "That code was mistyped too many times. Ask for a new one.", "code_used_up");
+  }
+  await db().update(schema.authChallenges).set({ data: { ...data, wrong } }).where(eq(schema.authChallenges.id, id));
+  return WRONG();
+}
+
+/**
  * Checks a typed code. The address's account, if it has one (the code is used up: sign them in);
  * otherwise `null`, and this browser may now create the account (createAccountWithCode).
  */
@@ -86,8 +103,8 @@ export async function verifyEmailCode(token: string | undefined, code: string): 
   const row = await load(token, "email-verify");
   if (!row) throw EXPIRED();
   const data = row.data as CodeData;
-  await limit(LIMITS.codeAttempts(data.email));
-  if (!safeEqual(row.challenge, codeHash(data.email, code.replace(/\D/g, "")))) throw WRONG();
+  await limit(LIMITS.codeAttempts(data.email), LIMITS.codeAttemptsDaily(data.email));
+  if (!safeEqual(row.challenge, codeHash(data.email, code.replace(/\D/g, "")))) throw await wrongTry(row.id, data);
   const user = await findUserByEmail(data.email);
   if (user) {
     await forget(row.id);
@@ -124,7 +141,7 @@ export async function sendConfirmCode(user: SessionUser, locale: Locale): Promis
 export async function verifyConfirmCode(user: SessionUser, token: string | undefined, code: string) {
   const row = await load(token, "reauth");
   if (!row || row.userId !== user.id) throw EXPIRED();
-  await limit(LIMITS.codeAttempts(user.email));
-  if (!safeEqual(row.challenge, codeHash(user.email, code.replace(/\D/g, "")))) throw WRONG();
+  await limit(LIMITS.codeAttempts(user.email), LIMITS.codeAttemptsDaily(user.email));
+  if (!safeEqual(row.challenge, codeHash(user.email, code.replace(/\D/g, "")))) throw await wrongTry(row.id, row.data as CodeData);
   await forget(row.id);
 }

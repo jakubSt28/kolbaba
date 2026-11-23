@@ -147,7 +147,8 @@ export const Mention = Extension.create<object, MentionStorage>({
           track("mention");
           // The first name reads naturally in a sentence ("@Petra, could you…").
           const name = person.name.trim().split(/\s+/)[0] || person.email.split("@")[0];
-          editor.chain().focus().deleteRange(range).insertContent(`${name} `).run();
+          // A text node, never a string: a string is parsed as HTML, and the name comes from whoever sent us mail.
+          editor.chain().focus().deleteRange(range).insertContent({ type: "text", text: `${name} ` }).run();
           storage.onPick?.(person);
         },
         render: () => {

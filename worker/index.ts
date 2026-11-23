@@ -12,7 +12,7 @@
  * Run: `npm run worker` (dev, watch mode) / `npm run worker:start`. Same env as the web app.
  */
 import "dotenv/config";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { env } from "@/server/env";
 import { Supervisor } from "./supervisor";
 import { startJobs } from "./jobs";
@@ -24,6 +24,20 @@ import { summarizeThread } from "@/server/insights/summary";
 const port = Number(process.env.PORT ?? process.env.WORKER_PORT ?? 3001);
 const supervisor = new Supervisor();
 
+/** The web app's nudges and summary requests are a few hundred bytes; anything bigger isn't from it. */
+const MAX_BODY = 64 * 1024;
+
+async function readBody(req: IncomingMessage): Promise<string | null> {
+  let body = "";
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > MAX_BODY) return null;
+  }
+  return body;
+}
+
+const authorized = (req: IncomingMessage) => !!env.workerSecret && safeEqual(req.headers.authorization ?? "", `Bearer ${env.workerSecret}`);
+
 const server = createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
@@ -32,12 +46,15 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "POST" && req.url === "/nudge") {
-    if (!env.workerSecret || !safeEqual(req.headers.authorization ?? "", `Bearer ${env.workerSecret}`)) {
+    if (!authorized(req)) {
       res.writeHead(401).end();
       return;
     }
-    let body = "";
-    for await (const chunk of req) body += chunk;
+    const body = await readBody(req);
+    if (body === null) {
+      res.writeHead(413).end();
+      return;
+    }
     res.writeHead(202).end();
     try {
       await supervisor.handleNudge(JSON.parse(body));
@@ -47,12 +64,15 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "POST" && req.url === "/summarize") {
-    if (!env.workerSecret || !safeEqual(req.headers.authorization ?? "", `Bearer ${env.workerSecret}`)) {
+    if (!authorized(req)) {
       res.writeHead(401).end();
       return;
     }
-    let body = "";
-    for await (const chunk of req) body += chunk;
+    const body = await readBody(req);
+    if (body === null) {
+      res.writeHead(413).end();
+      return;
+    }
     try {
       // The web app checked who is asking; the worker holds the OpenAI key.
       const { userId, threadId, locale } = JSON.parse(body) as { userId: string; threadId: string; locale: "en" | "cs" };

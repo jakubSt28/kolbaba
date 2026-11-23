@@ -25,6 +25,8 @@ export function SetupCard({ locale, token }: { locale: Locale; token: string }) 
   const reduce = useReducedMotion();
   const [step, setStep] = useState<Step>("checking");
   const [email, setEmail] = useState("");
+  // A link made for one address (`kolbaba-link --new me@…`) creates the account for that address only.
+  const [emailFixed, setEmailFixed] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,8 @@ export function SetupCard({ locale, token }: { locale: Locale; token: string }) 
     setupLink({ token, peek: true })
       .then((res) => {
         if (!active) return;
-        if (res.mode === "sign-in") setEmail(res.email);
+        if (res.email) setEmail(res.email);
+        if (res.mode === "new" && res.email) setEmailFixed(true);
         setStep(res.mode);
       })
       .catch(async (err) => {
@@ -134,7 +137,7 @@ export function SetupCard({ locale, token }: { locale: Locale; token: string }) 
         {step === "new" && (
           <form onSubmit={(e) => void submitLink(e)} className="space-y-3">
             <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder={translate(locale, "Your name")} aria-label={translate(locale, "Your name")} className={FIELD} />
-            <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder={translate(locale, "Email address")} aria-label={translate(locale, "Email address")} className={FIELD} />
+            <input required type="email" value={email} readOnly={emailFixed} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder={translate(locale, "Email address")} aria-label={translate(locale, "Email address")} className={FIELD} />
             <button type="submit" disabled={busy || !name.trim() || !email.trim()} className={PRIMARY}>
               {busy ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowRight size={18} />}
               {translate(locale, "Create account")}

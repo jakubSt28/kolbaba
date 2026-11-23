@@ -75,7 +75,7 @@ export async function createAccount(name: string, next?: string) {
 }
 
 /** The link from `kolbaba-link` on a self-hosted server: what it's for (`peek`), or use it (src/server/auth/setup-link.ts). */
-export function setupLink(body: { token: string; peek: true }): Promise<{ mode: "new" } | { mode: "sign-in"; email: string }>;
+export function setupLink(body: { token: string; peek: true }): Promise<{ mode: "new"; email?: string } | { mode: "sign-in"; email: string }>;
 export function setupLink(body: { token: string; details?: { name: string; email: string } }): Promise<{ hasPasskey: boolean }>;
 export function setupLink(body: object): Promise<unknown> {
   return post("/api/auth/setup", body);
@@ -143,6 +143,7 @@ export function describeError(locale: Locale, err: unknown): Notice | null {
       case "account_exists":
       case "challenge_expired":
       case "code_expired":
+      case "code_used_up":
       case "email_unconfirmed":
         return { tone: "calm", message, code: err.code };
       default:

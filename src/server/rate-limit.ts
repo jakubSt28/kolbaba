@@ -69,6 +69,8 @@ export const LIMITS = {
   emailCodesTo: (email: string): Limit => ({ key: `email-code:to:${pseudonym(email)}`, max: 6, windowMs: HOUR }),
   /** Wrong codes for one address before it has to wait. */
   codeAttempts: (email: string): Limit => ({ key: `code:email:${pseudonym(email)}`, max: 8, windowMs: 15 * MIN }),
+  /** And per day: without it, eight tries every 15 minutes add up to a real chance of guessing a 6-digit code. */
+  codeAttemptsDaily: (email: string): Limit => ({ key: `code-day:email:${pseudonym(email)}`, max: 40, windowMs: 24 * HOUR }),
   /** Logging in to mail servers with a password: without it, the app could be used to try other people's passwords. */
   mailboxTest: (userId: string, ip: string): Limit[] => [
     { key: `mailbox-test:user:${userId}`, max: 20, windowMs: HOUR },

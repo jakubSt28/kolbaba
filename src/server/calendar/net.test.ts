@@ -65,6 +65,15 @@ describe("safeFetch", () => {
     await expect(safeFetch("ftp://10.0.0.5/", {}, { fetch: fetchFn, resolve })).rejects.toThrow("Only https");
   });
 
+  it("keeps a self-hosted copy away from its own machine and the cloud's metadata", async () => {
+    process.env.SELF_HOSTED = "1";
+    const { fetchFn, calls } = fakeFetch({});
+    for (const url of ["http://127.0.0.1:3001/health", "http://169.254.169.254/latest/meta-data/", "http://[::1]/", "http://[::ffff:127.0.0.1]/", "http://localhost/"]) {
+      await expect(safeFetch(url, {}, { fetch: fetchFn, resolve })).rejects.toThrow("this server itself");
+    }
+    expect(calls).toEqual([]);
+  });
+
   it("follows redirects itself, keeping the method and the password within one origin", async () => {
     const { fetchFn, calls } = fakeFetch({
       "https://example.com/.well-known/caldav": () => redirect("/dav/", 301),

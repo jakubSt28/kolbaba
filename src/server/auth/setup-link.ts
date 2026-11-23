@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, gt } from "drizzle-orm";
 import { hashToken } from "../crypto";
 import { db, schema } from "../db";
+import { env } from "../env";
 import { HttpError } from "../http-error";
 import type { SessionUser } from "./session";
 import { createUser, findUserByEmail, findUserById, normalizeEmail } from "./users";
@@ -13,7 +14,8 @@ import { createUser, findUserByEmail, findUserById, normalizeEmail } from "./use
  * the first account can't be claimed without one, so nobody who just finds the address can take it over.
  */
 
-export type SetupLinkData = { userId?: string };
+/** `userId`: signs in that account. Otherwise a new account, for `email` only when the link names one (`kolbaba-link --new me@…`). */
+export type SetupLinkData = { userId?: string; email?: string };
 
 const NOT_VALID = () => new HttpError(400, "This link has expired or was already used. Make a new one on your server.", "setup_link_invalid");
 
@@ -26,11 +28,11 @@ async function load(token: string) {
 }
 
 /** What the link is for, without using it up: a link preview or a reload must not spend it. */
-export async function peekSetupLink(token: string): Promise<{ mode: "new" } | { mode: "sign-in"; email: string }> {
+export async function peekSetupLink(token: string): Promise<{ mode: "new"; email?: string } | { mode: "sign-in"; email: string }> {
   const row = await load(token);
   if (!row) throw NOT_VALID();
-  const { userId } = row.data as SetupLinkData;
-  if (!userId) return { mode: "new" };
+  const { userId, email } = row.data as SetupLinkData;
+  if (!userId) return email ? { mode: "new", email } : { mode: "new" };
   const user = await findUserById(userId);
   if (!user) throw NOT_VALID();
   return { mode: "sign-in", email: user.email };
@@ -45,6 +47,12 @@ export async function redeemSetupLink(token: string, details?: { email: string; 
   if (peeked.mode === "new") {
     if (!details) throw NOT_VALID();
     const email = normalizeEmail(details.email);
+    // Nobody checks the typed address, so a link that doesn't name one can't make the admin's account:
+    // whoever got hold of it would get /admin. The owner makes that one with a link for the address.
+    if (peeked.email && email !== peeked.email) throw new HttpError(400, "This link is for {email}.", "setup_link_email", { email: peeked.email });
+    if (!peeked.email && env.adminEmails.includes(email)) {
+      throw new HttpError(403, "For the admin's account, make a link for that address on the server: kolbaba-link --new {email}", "setup_link_admin", { email });
+    }
     // Checked before spending the link, so a mistyped address can be corrected and tried again.
     if (await findUserByEmail(email)) throw new HttpError(409, "You already have an account. Sign in instead.", "account_exists");
   }

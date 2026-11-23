@@ -5,6 +5,7 @@
  *   kolbaba-link              the first account, or the only one there is
  *   kolbaba-link me@mail.cz   sign in as this account
  *   kolbaba-link --new        another account on this server
+ *   kolbaba-link --new me@example.com  another account, for this address only (the way to make an admin's account)
  */
 import { eq } from "drizzle-orm";
 import { randomToken, hashToken } from "@/server/crypto";
@@ -27,10 +28,13 @@ async function userForLink(arg: string | undefined): Promise<string | undefined>
 
 async function main() {
   const userId = await userForLink(process.argv[2]);
+  const email = process.argv[2] === "--new" ? process.argv[3]?.trim().toLowerCase() : undefined;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`${email} isn't an email address`);
+  const data = userId ? { userId } : email ? { email } : {};
   const token = randomToken();
   await db()
     .insert(schema.authChallenges)
-    .values({ id: hashToken(token), kind: "setup-link", challenge: "", data: userId ? { userId } : {}, expiresAt: new Date(Date.now() + LINK_TTL_MS) });
+    .values({ id: hashToken(token), kind: "setup-link", challenge: "", data, expiresAt: new Date(Date.now() + LINK_TTL_MS) });
   console.log(`\n  ${userId ? "Sign in" : "Create your account"} (works once, for an hour):\n\n  ${env.appUrl}/login?setup=${token}\n`);
 }
 

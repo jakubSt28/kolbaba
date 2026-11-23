@@ -9,6 +9,7 @@ import { db, schema } from "@/server/db";
 import { exchangeMicrosoftCalendarCode } from "@/server/calendar/microsoft";
 import { connectOAuth } from "@/server/calendar/service";
 import { HttpError } from "@/server/http-error";
+import { connectRedirect } from "@/server/connect-result";
 import { requestLocale } from "@/server/i18n";
 import { upsertAccount } from "@/server/mail/accounts";
 import { MailAuthError } from "@/server/mail/types";
@@ -31,7 +32,7 @@ const needsAdmin = (description: string | null) => !!description && /AADSTS(6500
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const locale = requestLocale(req);
-  const back = (params: Record<string, string>) => Response.redirect(new URL(`/?${new URLSearchParams(params)}`, req.url), 303);
+  const back = (params: Record<string, string>) => connectRedirect(req, params);
 
   // The IT admin approved Kolbaba for their organisation (adminconsent comes back without a code).
   if (url.searchParams.has("admin_consent")) {

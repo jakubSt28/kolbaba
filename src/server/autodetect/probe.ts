@@ -49,6 +49,29 @@ export function isPublicAddress(ip: string): boolean {
   return !blocked.check(ip, family === 4 ? "ipv4" : "ipv6");
 }
 
+/** This machine itself and the link-local range (where cloud metadata services live): out of reach even for a self-hosted copy. */
+const ownMachine = new BlockList();
+for (const [net, prefix] of [["0.0.0.0", 8], ["127.0.0.0", 8], ["169.254.0.0", 16]] as const) ownMachine.addSubnet(net, prefix, "ipv4");
+for (const [net, prefix] of [["::", 128], ["::1", 128], ["fe80::", 10]] as const) ownMachine.addSubnet(net, prefix, "ipv6");
+
+export function isOwnMachineAddress(ip: string): boolean {
+  const family = isIP(ip);
+  if (!family) return true;
+  const mapped = family === 6 ? unmapIPv4(ip) : null;
+  if (mapped) return isOwnMachineAddress(mapped);
+  return ownMachine.check(ip, family === 4 ? "ipv4" : "ipv6");
+}
+
+/**
+ * For a self-hosted copy, which may reach servers on its owner's network: true when the name resolves
+ * and none of its addresses is this machine or link-local (the app's own ports, a cloud's metadata).
+ */
+export async function resolvesOffMachine(host: string, timeoutMs: number): Promise<boolean> {
+  if (isIP(host)) return !isOwnMachineAddress(host);
+  const addrs = await within(lookup(host, { all: true }), timeoutMs);
+  return !!addrs?.length && addrs.every((a) => !isOwnMachineAddress(a.address));
+}
+
 /** Resolve a hostname and return its first address, or null if it doesn't resolve or points somewhere private. */
 export async function resolvePublic(host: string, timeoutMs: number): Promise<string | null> {
   if (isIP(host)) return isPublicAddress(host) ? host : null;

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import webpush from "web-push";
 import type { Locale } from "@/lib/i18n";
 import { inQuietHours } from "@/lib/quiet-hours";
@@ -46,6 +46,7 @@ function configure() {
  */
 export async function notifyUser(userId: string, payload: PushPayload) {
   if (!configure()) return;
+  await pruneSignedOut(userId);
   const subs = await db()
     .select()
     .from(schema.pushSubscriptions)
@@ -77,4 +78,25 @@ export async function notifyUser(userId: string, payload: PushPayload) {
       }
     }),
   );
+}
+
+/**
+ * A device whose sign-in ended (it expired, or the cookie went without a sign-out reaching us) stops
+ * getting this account's mail in notifications. A session can't outlive its expiry, so an expired or
+ * missing one is gone for good. Subscriptions from before sessions were recorded have none and stay.
+ */
+async function pruneSignedOut(userId: string) {
+  const p = schema.pushSubscriptions;
+  const s = schema.sessions;
+  const dead = await db()
+    .select({ id: p.id })
+    .from(p)
+    .leftJoin(s, eq(s.id, p.sessionId))
+    .where(and(eq(p.userId, userId), isNotNull(p.sessionId), or(isNull(s.id), lte(s.expiresAt, new Date()))));
+  if (dead.length) await db().delete(p).where(inArray(p.id, dead.map((d) => d.id)));
+}
+
+/** Signing out on this device: its notifications stop with it. */
+export async function stopSessionPush(sessionId: string) {
+  await db().delete(schema.pushSubscriptions).where(eq(schema.pushSubscriptions.sessionId, sessionId));
 }

@@ -1,7 +1,8 @@
 import { like } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, schema } from "../db";
-import { createAccountWithCode, sendConfirmCode, sendEmailCode, verifyConfirmCode, verifyEmailCode } from "./email-code";
+import { LIMITS } from "../rate-limit";
+import { createAccountWithCode, MAX_WRONG_PER_CODE, sendConfirmCode, sendEmailCode, verifyConfirmCode, verifyEmailCode } from "./email-code";
 
 const sent = vi.hoisted(() => [] as { to: string; text: string }[]);
 vi.mock("../system-mail", () => ({
@@ -62,11 +63,29 @@ describe("code by email", () => {
     await sendEmailCode({ email, ip: ip(), locale: "en" });
   });
 
-  it("stops guessing after a few wrong codes", async () => {
-    const email = address("guess");
+  it("throws a code away after a few wrong tries", async () => {
+    const email = address("mistype");
     const token = await sendEmailCode({ email, ip: ip(), locale: "en" });
-    for (let i = 0; i < 8; i++) await expect(verifyEmailCode(token, wrongCode())).rejects.toMatchObject({ code: "wrong_code" });
+    for (let i = 1; i < MAX_WRONG_PER_CODE; i++) await expect(verifyEmailCode(token, wrongCode())).rejects.toMatchObject({ code: "wrong_code" });
+    await expect(verifyEmailCode(token, wrongCode())).rejects.toMatchObject({ code: "code_used_up" });
+    await expect(verifyEmailCode(token, lastCode())).rejects.toMatchObject({ code: "code_expired" });
+  });
+
+  it("stops guessing after a few wrong codes, across new codes", async () => {
+    const email = address("guess");
+    const first = await sendEmailCode({ email, ip: ip(), locale: "en" });
+    for (let i = 1; i < MAX_WRONG_PER_CODE; i++) await expect(verifyEmailCode(first, wrongCode())).rejects.toMatchObject({ code: "wrong_code" });
+    const second = await sendEmailCode({ email, ip: ip(), locale: "en" });
+    for (let i = MAX_WRONG_PER_CODE; i <= 8; i++) await expect(verifyEmailCode(second, wrongCode())).rejects.toMatchObject({ code: "wrong_code" });
     // Even the right code is refused now, until the window is over.
+    await expect(verifyEmailCode(second, lastCode())).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("has a daily ceiling on tries for one address", async () => {
+    const email = address("daily");
+    const token = await sendEmailCode({ email, ip: ip(), locale: "en" });
+    // As if the 15-minute windows had passed all day long.
+    await db().insert(schema.rateLimits).values({ key: LIMITS.codeAttemptsDaily(email).key, windowStart: new Date(), count: LIMITS.codeAttemptsDaily(email).max });
     await expect(verifyEmailCode(token, lastCode())).rejects.toMatchObject({ status: 429 });
   });
 

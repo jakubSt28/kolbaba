@@ -2,7 +2,10 @@ import { generateCodeVerifier, generateState } from "arctic";
 import { cookies } from "next/headers";
 import { pathCookie, SECURE_COOKIES } from "@/server/auth/cookie-name";
 import { createChallenge } from "@/server/auth/challenges";
+import { translate } from "@/lib/i18n";
 import { getUser } from "@/server/auth/session";
+import { connectRedirect } from "@/server/connect-result";
+import { requestLocale } from "@/server/i18n";
 import { microsoftCalendarAuthUrl } from "@/server/calendar/microsoft";
 import { microsoftAuthUrl, microsoftEnabled } from "@/server/microsoft";
 
@@ -15,7 +18,7 @@ const COOKIE = pathCookie("kolbaba_mailbox_oauth");
 export async function GET(req: Request) {
   const user = await getUser();
   if (!user) return Response.redirect(new URL("/login", req.url), 303);
-  if (!microsoftEnabled()) return Response.redirect(new URL("/?connect_error=Outlook%20isn%27t%20available%20yet", req.url), 303);
+  if (!microsoftEnabled()) return connectRedirect(req, { connect_error: translate(requestLocale(req), "Outlook isn't available yet") });
   const params = new URL(req.url).searchParams;
   const hint = params.get("hint") ?? undefined;
   const calendar = params.has("calendar");

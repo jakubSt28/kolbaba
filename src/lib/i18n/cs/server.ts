@@ -27,6 +27,7 @@ export const server: Dictionary = {
   "Confirm your email": "Ověř svůj e-mail",
   "That code expired. Ask for a new one.": "Platnost kódu vypršela. Požádej o nový.",
   "That code isn't right. Check the email and try again.": "Tenhle kód nesedí. Zkontroluj e-mail a zkus to znovu.",
+  "That code was mistyped too many times. Ask for a new one.": "Kód byl zadaný špatně příliš mockrát. Požádej o nový.",
   "We couldn't send the email. Please try again later.": "E-mail se nepodařilo odeslat. Zkus to prosím později.",
   "To sign out of this device, use Sign out.": "Pro odhlášení tohoto zařízení použij Odhlásit se.",
   "There's no passkey on this account.": "Tenhle účet nemá žádný přístupový klíč.",
