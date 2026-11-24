@@ -1,14 +1,16 @@
 "use client";
 
+import { CalendarPlus, Sun } from "lucide-react";
+import { ContextMenu } from "radix-ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { atTime, dayKey, eventSpan, formatLongDay, formatTime, parseDay, sameDay, startOfDay, weekdayShort } from "@/lib/calendar/dates";
 import { hiddenPerDay, layoutBars, type Bar } from "@/lib/calendar/layout";
-import { useCalendar } from "@/lib/calendar/store";
+import { PREVIEW_ID, useCalendar } from "@/lib/calendar/store";
 import type { CalEvent, Calendar } from "@/lib/calendar/types";
 import { t, tn } from "@/lib/i18n";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { hueStyle } from "../ui";
+import { hueStyle, menuItemClass } from "../ui";
 import { dragByDay, type Drag } from "./move-event";
 
 const rectOf = (el: Element) => {
@@ -55,7 +57,8 @@ export function MonthView({ days, month, events, calendars, compact }: { days: D
     [],
   );
   const now = new Date(useNow());
-  const openId = useCalendar((s) => s.openEvent?.id);
+  // The open event, or the one in the editor (drawn where the form puts it).
+  const openId = useCalendar((s) => s.openEvent?.id ?? (s.preview ? (s.editor?.eventId ?? PREVIEW_ID) : undefined));
   const hueOf = useMemo(() => new Map(calendars.map((c) => [c.id, c.hue])), [calendars]);
   const weeks = useMemo(() => Array.from({ length: days.length / 7 }, (_, i) => days.slice(i * 7, i * 7 + 7)), [days]);
 
@@ -133,42 +136,55 @@ function WeekRow({
         // The dragged event would cover this day.
         const landing = !!drag && day.getTime() >= startOfDay(drag.start).getTime() && day < drag.end;
         return (
-          <div
-            key={day.getTime()}
-            data-day={dayKey(day)}
-            onClick={(e) => {
-              if (e.target !== e.currentTarget) return;
-              if (compact) goTo(day, "day");
-              else newEvent({ start: atTime(day, 9 * 60) });
-            }}
-            className={cn(
-              "min-w-0 border-l border-line first:border-l-0",
-              !compact && !drag && "cursor-default hover:bg-hover/60",
-              other && "bg-hover/40",
-              landing && "bg-accent-soft/70 shadow-[inset_0_0_0_1.5px_var(--accent)]",
-            )}
-          >
-            <button
-              onClick={() => goTo(day, "day")}
-              aria-label={formatLongDay(day)}
-              className={cn(
-                "m-1 flex size-6 items-center justify-center rounded-full text-[12.5px] tabular-nums transition-colors",
-                compact && "mx-auto",
-                today ? "bg-accent font-semibold text-on-accent" : other ? "text-ink-3 hover:bg-hover" : "font-medium text-ink hover:bg-hover",
-              )}
-            >
-              {day.getDate()}
-            </button>
-            {hidden[i] > 0 && (
-              <button
-                onClick={() => goTo(day, "day")}
-                className="absolute truncate rounded-[5px] px-1.5 text-left text-[11px] font-medium text-ink-3 hover:bg-hover hover:text-ink-2"
-                style={{ top: head + shown * line, height: line - 2, left: `calc(${(i / 7) * 100}% + 2px)`, width: `calc(${100 / 7}% - 4px)` }}
+          <ContextMenu.Root key={day.getTime()} modal={false}>
+            <ContextMenu.Trigger asChild disabled={compact}>
+              <div
+                data-day={dayKey(day)}
+                onClick={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (compact) goTo(day, "day");
+                  else newEvent({ start: atTime(day, 9 * 60) });
+                }}
+                className={cn(
+                  "min-w-0 border-l border-line first:border-l-0",
+                  !compact && !drag && "cursor-default hover:bg-hover/60",
+                  other && "bg-hover/40",
+                  landing && "bg-accent-soft/70 shadow-[inset_0_0_0_1.5px_var(--accent)]",
+                )}
               >
-                {compact ? `+${hidden[i]}` : tn(hidden[i], "{n} more", "{n} more")}
-              </button>
-            )}
-          </div>
+                <button
+                  onClick={() => goTo(day, "day")}
+                  aria-label={formatLongDay(day)}
+                  className={cn(
+                    "m-1 flex size-6 items-center justify-center rounded-full text-[12.5px] tabular-nums transition-colors",
+                    compact && "mx-auto",
+                    today ? "bg-accent font-semibold text-on-accent" : other ? "text-ink-3 hover:bg-hover" : "font-medium text-ink hover:bg-hover",
+                  )}
+                >
+                  {day.getDate()}
+                </button>
+                {hidden[i] > 0 && (
+                  <button
+                    onClick={() => goTo(day, "day")}
+                    className="absolute truncate rounded-[5px] px-1.5 text-left text-[11px] font-medium text-ink-3 hover:bg-hover hover:text-ink-2"
+                    style={{ top: head + shown * line, height: line - 2, left: `calc(${(i / 7) * 100}% + 2px)`, width: `calc(${100 / 7}% - 4px)` }}
+                  >
+                    {compact ? `+${hidden[i]}` : tn(hidden[i], "{n} more", "{n} more")}
+                  </button>
+                )}
+              </div>
+            </ContextMenu.Trigger>
+            <ContextMenu.Portal>
+              <ContextMenu.Content className="glass-strong z-50 min-w-[210px] rounded-xl p-1 text-[13px] text-ink data-[state=open]:animate-[menu-in_120ms_ease-out]">
+                <ContextMenu.Item className={menuItemClass} onSelect={() => newEvent({ start: atTime(day, 9 * 60) })}>
+                  <CalendarPlus size={14} /> {t("New event")}
+                </ContextMenu.Item>
+                <ContextMenu.Item className={menuItemClass} onSelect={() => newEvent({ start: startOfDay(day), allDay: true })}>
+                  <Sun size={14} /> {t("New all-day event")}
+                </ContextMenu.Item>
+              </ContextMenu.Content>
+            </ContextMenu.Portal>
+          </ContextMenu.Root>
         );
       })}
       {bars
@@ -229,7 +245,9 @@ function MonthBar({
     >
       {bar.timed && <span className="cal-dot size-[7px] shrink-0 rounded-full" />}
       {bar.timed && !compact && <span className="shrink-0 text-ink-3 tabular-nums">{formatTime(eventSpan(e).start)}</span>}
-      <span className={cn("truncate", bar.timed && "font-medium text-ink", declined && "line-through")}>{e.title || t("(No title)")}</span>
+      <span className={cn("truncate", bar.timed && "font-medium text-ink", declined && "line-through")}>
+        {e.title || (e.id === PREVIEW_ID ? "" : t("(No title)"))}
+      </span>
     </button>
   );
 }

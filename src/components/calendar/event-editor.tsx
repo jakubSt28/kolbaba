@@ -2,7 +2,7 @@
 
 import { AlignLeft, CalendarDays, Clock, LoaderCircle, MapPin, Repeat, Trash2, Users, X } from "lucide-react";
 import { Dialog } from "radix-ui";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { addDays, atTime, dayKey, minutesOf, parseDay, startOfDay } from "@/lib/calendar/dates";
 import { presetOf, REPEAT_LABELS, REPEAT_PRESETS, ruleFor, type RepeatPreset } from "@/lib/calendar/recurrence";
 import { useCalendar } from "@/lib/calendar/store";
@@ -25,17 +25,22 @@ const EMAIL = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 export function EventEditorHost({ mobile }: { mobile: boolean }) {
   const editor = useCalendar((s) => s.editor);
   const close = useCalendar((s) => s.closeEditor);
+  const left = useBesideTheDraft(!mobile && !!editor);
   // On a phone a swipe down on its header closes it, as its X does; not in the form, where it's scrolling.
   const [sheet] = useSwipe({ way: "down", onSwipe: close, enabled: mobile && !!editor, slideOut: true, handle: "[data-sheet-header]" });
   return (
     <Dialog.Root open={!!editor} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
+        {/* On a computer the calendar stays clear behind, so the event can be seen taking shape there. */}
+        <Dialog.Overlay
+          className={cn("fixed inset-0 z-50 data-[state=open]:animate-[fade-in_140ms_ease-out]", mobile ? "bg-black/20 dark:bg-black/45" : "bg-black/[0.04] dark:bg-black/20")}
+        />
         <Dialog.Content
           ref={sheet}
           aria-describedby={undefined}
           // The title is where typing starts; on a phone the keyboard waits until a field is tapped.
           onOpenAutoFocus={(e) => mobile && e.preventDefault()}
+          style={left !== null ? { left, translate: "0 -50%" } : undefined}
           className={cn(
             "z-50 flex flex-col outline-none",
             mobile
@@ -62,6 +67,8 @@ function EditorForm({ eventId, initial, mobile }: { eventId?: string; initial: E
   // The event's own reminder time; left alone (the usual one) until another is picked.
   const [reminder, setReminder] = useState<number | null | undefined>(original?.reminder);
   const set = (patch: Partial<EventInput>) => setDraft((d) => ({ ...d, ...patch }));
+  // The calendar draws the event as it's filled in.
+  useEffect(() => useCalendar.getState().setPreview(draft), [draft]);
 
   const start = draft.allDay ? parseDay(draft.start) : new Date(draft.start);
   // All-day events end "the day after the last": the form shows the last day.
@@ -320,6 +327,37 @@ function EditorForm({ eventId, initial, mobile }: { eventId?: string; initial: E
       </div>
     </form>
   );
+}
+
+const WIDTH = 500;
+const GAP = 16;
+
+/**
+ * Where the window goes on a computer so it doesn't cover the event being drawn behind it: next to the
+ * event's day, on whichever side has room (null: in the middle, when the day isn't on screen or nothing fits).
+ */
+function useBesideTheDraft(enabled: boolean) {
+  const preview = useCalendar((s) => s.preview);
+  const day = preview ? (preview.allDay ? preview.start : dayKey(new Date(preview.start))) : null;
+  // The calendar is already drawn under the window, so its day column can be measured right away.
+  return useMemo(() => (enabled && day ? besideDay(day) : null), [enabled, day]);
+}
+
+function besideDay(day: string) {
+  const column = document.querySelector(`[data-day="${day}"]`);
+  if (!column) return null;
+  const r = column.getBoundingClientRect();
+  const width = Math.min(WIDTH, window.innerWidth - 24);
+  const middle = (window.innerWidth - width) / 2;
+  // Already clear of it in the middle: stay there.
+  if (middle >= r.right + GAP || middle + width <= r.left - GAP) return null;
+  const after = r.right + GAP;
+  const before = r.left - GAP - width;
+  const fitsAfter = after + width <= window.innerWidth - GAP;
+  const fitsBefore = before >= GAP;
+  // The side with more room; a day on the left half gets the window on its right.
+  if (fitsAfter && (!fitsBefore || r.left + r.width / 2 < window.innerWidth / 2)) return after;
+  return fitsBefore ? before : null;
 }
 
 /** One line of the form: its icon on the left, a hairline under it. */

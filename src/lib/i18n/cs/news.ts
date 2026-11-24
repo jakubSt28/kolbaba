@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "See a new event in the calendar while you write it": "Novou událost vidíš v kalendáři, zatímco ji píšeš",
+  "On the computer, the event shows in its place in the calendar as you fill it in: first just the time, then its name, and it moves when you change the time. Right-click an empty time to add an event there, or right-click an event to open, change or delete it.":
+    "Na počítači se událost ukazuje na svém místě v kalendáři, zatímco ji vyplňuješ: nejdřív jen čas, pak i název, a když změníš čas, posune se. Pravým tlačítkem na volný čas tam přidáš událost, pravým na událost ji otevřeš, upravíš nebo smažeš.",
   "Attachments open right in Kolbaba": "Přílohy se otevírají přímo v Kolbabě",
   "Photos, PDFs and text files open in Kolbaba, and the cross or Back closes them. The arrows go to the next file. On your phone, Share opens other files in another app or saves them to Files. In Files, tapping a file opens it.":
     "Fotky, PDF a textové soubory se otevřou v Kolbabě a křížkem nebo gestem zpět je zase zavřeš. Šipkami přejdeš na další soubor. Na telefonu přes Sdílet otevřeš ostatní soubory v jiné aplikaci nebo je uložíš do Souborů. V sekci Soubory se soubor otevře klepnutím.",

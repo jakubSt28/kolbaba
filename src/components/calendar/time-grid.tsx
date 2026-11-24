@@ -1,15 +1,17 @@
 "use client";
 
-import { Repeat, Video } from "lucide-react";
+import { CalendarPlus, Eye, Pencil, Repeat, Sun, Trash2, Video } from "lucide-react";
+import { ContextMenu } from "radix-ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { addDays, atTime, eventSpan, formatTime, minutesOf, sameDay, spansDays, startOfDay, weekdayShort } from "@/lib/calendar/dates";
+import { addDays, atTime, dayKey, eventSpan, formatTime, minutesOf, sameDay, spansDays, startOfDay, weekdayShort } from "@/lib/calendar/dates";
 import { layoutBars, layoutDay, type TimedBox } from "@/lib/calendar/layout";
-import { useCalendar } from "@/lib/calendar/store";
+import { PREVIEW_ID, useCalendar } from "@/lib/calendar/store";
 import type { CalEvent, Calendar } from "@/lib/calendar/types";
 import { intlLocale, t } from "@/lib/i18n";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { hueStyle } from "../ui";
+import { hueStyle, menuItemClass } from "../ui";
+import { askDelete } from "./event-details";
 import { canDrag, DRAG_SLOP, dragByDay, moveEvent, type Drag } from "./move-event";
 
 /** One hour's height. Roomy enough that a half-hour event shows its title and time. */
@@ -52,6 +54,8 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
   const now = new Date(useNow());
   const goTo = useCalendar((s) => s.goTo);
   const openId = useCalendar((s) => s.openEvent?.id);
+  // The event in the editor, drawn where the form puts it.
+  const draftId = useCalendar((s) => (s.preview ? (s.editor?.eventId ?? PREVIEW_ID) : null));
   const hueOf = useMemo(() => new Map(calendars.map((c) => [c.id, c.hue])), [calendars]);
   const long = useMemo(() => layoutBars(events.filter(spansDays), days), [events, days]);
   const lines = Math.max(0, ...long.map((b) => b.line + 1));
@@ -196,7 +200,7 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
                 <button
                   key={`${bar.event.id}:${bar.column}`}
                   data-event={bar.event.id}
-                  data-open={openId === bar.event.id ? "" : undefined}
+                  data-open={openId === bar.event.id || draftId === bar.event.id ? "" : undefined}
                   onPointerDown={(e) => dragByDay(bar.event, e, stripDay, (d) => setDrag(d && { ...d, kind: "day" }), drop)}
                   onClick={(e) => open(bar.event, e.currentTarget)}
                   className={cn(
@@ -214,7 +218,7 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
                     width: `calc(${(bar.span / days.length) * 100}% - 5px)`,
                   }}
                 >
-                  <span className="truncate">{bar.event.title || t("(No title)")}</span>
+                  <span className="truncate">{bar.event.title || (draftId === bar.event.id ? "" : t("(No title)"))}</span>
                 </button>
               ))}
             </div>
@@ -237,7 +241,20 @@ export function TimeGrid({ days, events, calendars, compact }: { days: Date[]; e
               <div key={h} className="pointer-events-none absolute inset-x-0 h-px bg-line" style={{ top: h * HOUR }} />
             ))}
             {days.map((day) => (
-              <DayColumn key={day.getTime()} day={day} events={events} hueOf={hueOf} now={now} openId={openId} compact={compact} narrow={narrow} moving={drag && drag.kind !== "day" ? drag : null} grab={grab} open={open} />
+              <DayColumn
+                key={day.getTime()}
+                day={day}
+                events={events}
+                hueOf={hueOf}
+                now={now}
+                openId={openId}
+                draftId={draftId}
+                compact={compact}
+                narrow={narrow}
+                moving={drag && drag.kind !== "day" ? drag : null}
+                grab={grab}
+                open={open}
+              />
             ))}
           </div>
         </div>
@@ -252,6 +269,7 @@ function DayColumn({
   hueOf,
   now,
   openId,
+  draftId,
   compact,
   narrow,
   moving,
@@ -263,6 +281,7 @@ function DayColumn({
   hueOf: Map<string, number>;
   now: Date;
   openId?: string;
+  draftId: string | null;
   compact?: boolean;
   narrow?: boolean;
   /** An event being dragged: its part that would land on this day is drawn in its new place. */
@@ -277,6 +296,8 @@ function DayColumn({
   const start = useRef<{ y: number; minutes: number } | null>(null);
   // What last pressed here: a mouse drags a time out, a finger taps (and its drag scrolls the page).
   const pointer = useRef("mouse");
+  // What a right click was on: an empty time (minutes from midnight) or an event.
+  const [menu, setMenu] = useState<{ minutes: number } | { event: CalEvent } | null>(null);
   const today = sameDay(day, now);
 
   const minutesAt = (clientY: number) => {
@@ -322,66 +343,114 @@ function DayColumn({
   }, [!!drag, drag?.from, drag?.to]);
 
   return (
-    <div
-      ref={ref}
-      className={cn("relative border-l border-line", today && "bg-accent-soft/25")}
-      onPointerDown={(e) => {
-        pointer.current = e.pointerType;
-        // With a mouse: press and drag over the time. A finger scrolls; it makes an event with a tap (onClick).
-        if (e.pointerType !== "mouse" || e.button !== 0 || e.target !== e.currentTarget) return;
-        const minutes = snap(minutesAt(e.clientY));
-        start.current = { y: e.clientY, minutes };
-        setDrag({ from: minutes, to: minutes + SNAP });
-      }}
-      onClick={(e) => {
-        if (pointer.current === "mouse" || e.target !== e.currentTarget) return;
-        const from = Math.min(23 * 60, Math.floor(minutesAt(e.clientY) / 30) * 30);
-        useCalendar.getState().newEvent({ start: atTime(day, from) });
-      }}
-    >
-      {drag && (
+    <ContextMenu.Root modal={false}>
+      <ContextMenu.Trigger asChild disabled={compact}>
         <div
-          className="pointer-events-none absolute inset-x-0.5 z-10 rounded-[8px] bg-accent-soft px-2 py-1 text-[11.5px] font-medium text-accent-text shadow-[inset_0_0_0_1.5px_var(--accent)]"
-          style={{ top: (drag.from / 60) * HOUR, height: Math.max(((drag.to - drag.from) / 60) * HOUR, 18) }}
+          ref={ref}
+          data-day={dayKey(day)}
+          className={cn("relative border-l border-line", today && "bg-accent-soft/25")}
+          onContextMenu={(e) => {
+            const id = (e.target as Element).closest("[data-event]")?.getAttribute("data-event");
+            const event = id ? events.find((x) => x.id === id) : undefined;
+            setMenu(event ? { event } : { minutes: Math.min(23 * 60, Math.floor(minutesAt(e.clientY) / 30) * 30) });
+          }}
+          onPointerDown={(e) => {
+            pointer.current = e.pointerType;
+            // With a mouse: press and drag over the time. A finger scrolls; it makes an event with a tap (onClick).
+            if (e.pointerType !== "mouse" || e.button !== 0 || e.target !== e.currentTarget) return;
+            const minutes = snap(minutesAt(e.clientY));
+            start.current = { y: e.clientY, minutes };
+            setDrag({ from: minutes, to: minutes + SNAP });
+          }}
+          onClick={(e) => {
+            if (pointer.current === "mouse" || e.target !== e.currentTarget) return;
+            const from = Math.min(23 * 60, Math.floor(minutesAt(e.clientY) / 30) * 30);
+            useCalendar.getState().newEvent({ start: atTime(day, from) });
+          }}
         >
-          {formatTime(atTime(day, drag.from))} – {formatTime(atTime(day, Math.min(drag.to, 1439)))}
-        </div>
-      )}
-      {/* Room on the right stays free, so there's always somewhere to click for a new event. */}
-      <div className={cn("pointer-events-none absolute inset-y-0 left-0", narrow ? "right-0.5" : compact ? "right-1" : "right-2.5")}>
-        {boxes.map((box) => (
-          <EventBox
-            key={box.event.id}
-            box={box}
-            hue={hueOf.get(box.event.calendarId) ?? 200}
-            over={eventSpan(box.event).end < now}
-            open={openId === box.event.id}
-            compact={compact}
-            narrow={narrow}
-            lifted={moving?.event.id === box.event.id}
-            grab={grab}
-            onOpen={open}
-          />
-        ))}
-        {moving && ghost && (
-          <div
-            className="cal-event absolute inset-x-0.5 z-20 overflow-hidden rounded-[7px] py-1 pr-1.5 pl-[9px] shadow-[var(--shadow-float)]"
-            style={{ ...hueStyle(hueOf.get(moving.event.calendarId) ?? 200), top: (ghost.top / 60) * HOUR + 1, height: Math.max(((ghost.bottom - ghost.top) / 60) * HOUR - 2, 20) }}
-          >
-            <span className="block truncate text-[12px] leading-[15px] font-medium">{moving.event.title || t("(No title)")}</span>
-            <span className="block truncate text-[11px] leading-[14px] opacity-75">
-              {formatTime(moving.start)} – {formatTime(moving.end)}
-            </span>
+          {drag && (
+            <div
+              className="pointer-events-none absolute inset-x-0.5 z-10 rounded-[8px] bg-accent-soft px-2 py-1 text-[11.5px] font-medium text-accent-text shadow-[inset_0_0_0_1.5px_var(--accent)]"
+              style={{ top: (drag.from / 60) * HOUR, height: Math.max(((drag.to - drag.from) / 60) * HOUR, 18) }}
+            >
+              {formatTime(atTime(day, drag.from))} – {formatTime(atTime(day, Math.min(drag.to, 1439)))}
+            </div>
+          )}
+          {/* Room on the right stays free, so there's always somewhere to click for a new event. */}
+          <div className={cn("pointer-events-none absolute inset-y-0 left-0", narrow ? "right-0.5" : compact ? "right-1" : "right-2.5")}>
+            {boxes.map((box) => (
+              <EventBox
+                key={box.event.id}
+                box={box}
+                hue={hueOf.get(box.event.calendarId) ?? 200}
+                over={eventSpan(box.event).end < now}
+                open={openId === box.event.id}
+                draft={draftId === box.event.id}
+                compact={compact}
+                narrow={narrow}
+                lifted={moving?.event.id === box.event.id}
+                grab={grab}
+                onOpen={open}
+              />
+            ))}
+            {moving && ghost && (
+              <div
+                className="cal-event absolute inset-x-0.5 z-20 overflow-hidden rounded-[7px] py-1 pr-1.5 pl-[9px] shadow-[var(--shadow-float)]"
+                style={{
+                  ...hueStyle(hueOf.get(moving.event.calendarId) ?? 200),
+                  top: (ghost.top / 60) * HOUR + 1,
+                  height: Math.max(((ghost.bottom - ghost.top) / 60) * HOUR - 2, 20),
+                }}
+              >
+                <span className="block truncate text-[12px] leading-[15px] font-medium">{moving.event.title || t("(No title)")}</span>
+                <span className="block truncate text-[11px] leading-[14px] opacity-75">
+                  {formatTime(moving.start)} – {formatTime(moving.end)}
+                </span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      {today && (
-        <div className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: (minutesOf(now) / 60) * HOUR }}>
-          <span className="-ml-[5px] size-[9px] -translate-y-1/2 rounded-full bg-warm" />
-          <span className="h-[1.5px] flex-1 -translate-y-1/2 bg-warm" />
+          {today && (
+            <div className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: (minutesOf(now) / 60) * HOUR }}>
+              <span className="-ml-[5px] size-[9px] -translate-y-1/2 rounded-full bg-warm" />
+              <span className="h-[1.5px] flex-1 -translate-y-1/2 bg-warm" />
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="glass-strong z-50 min-w-[210px] rounded-xl p-1 text-[13px] text-ink data-[state=open]:animate-[menu-in_120ms_ease-out]">
+          {menu && "event" in menu ? (
+            <>
+              <ContextMenu.Item
+                className={menuItemClass}
+                onSelect={() => open(menu.event, document.querySelector(`[data-event="${CSS.escape(menu.event.id)}"]`) ?? document.body)}
+              >
+                <Eye size={14} /> {t("Open")}
+              </ContextMenu.Item>
+              {menu.event.canEdit && (
+                <>
+                  <ContextMenu.Item className={menuItemClass} onSelect={() => useCalendar.getState().editEvent(menu.event.id)}>
+                    <Pencil size={14} /> {t("Edit")}
+                  </ContextMenu.Item>
+                  <ContextMenu.Item className={cn(menuItemClass, "text-danger")} onSelect={() => askDelete(menu.event)}>
+                    <Trash2 size={14} /> {t("Delete")}
+                  </ContextMenu.Item>
+                </>
+              )}
+            </>
+          ) : menu ? (
+            <>
+              <ContextMenu.Item className={menuItemClass} onSelect={() => useCalendar.getState().newEvent({ start: atTime(day, menu.minutes) })}>
+                <CalendarPlus size={14} /> {t("New event at {time}", { time: formatTime(atTime(day, menu.minutes)) })}
+              </ContextMenu.Item>
+              <ContextMenu.Item className={menuItemClass} onSelect={() => useCalendar.getState().newEvent({ start: startOfDay(day), allDay: true })}>
+                <Sun size={14} /> {t("New all-day event")}
+              </ContextMenu.Item>
+            </>
+          ) : null}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
 
@@ -390,6 +459,7 @@ function EventBox({
   hue,
   over,
   open,
+  draft,
   compact,
   narrow,
   lifted,
@@ -400,6 +470,8 @@ function EventBox({
   hue: number;
   over: boolean;
   open: boolean;
+  /** The event in the editor, as it's being filled in: lifted above the rest, its title as typed so far. */
+  draft?: boolean;
   compact?: boolean;
   narrow?: boolean;
   /** It's being dragged: it fades where it was. */
@@ -413,19 +485,21 @@ function EventBox({
   const time = `${formatTime(start)} – ${formatTime(end)}`;
   // Two lines once there's room for them; a short event says its start after the title.
   const tall = height >= 40;
+  const title = e.title || (draft ? "" : t("(No title)"));
   return (
     <button
       data-event={e.id}
-      data-open={open ? "" : undefined}
+      data-open={open || draft ? "" : undefined}
       onPointerDown={(ev) => grab(e, "move", ev)}
       onClick={(ev) => onOpen(e, ev.currentTarget)}
-      aria-label={`${e.title || t("(No title)")}, ${time}`}
+      aria-label={`${title || t("(No title)")}, ${time}`}
       className={cn(
         "pointer-events-auto absolute overflow-hidden rounded-[7px] pr-1.5 pl-[9px] text-left transition-[background-color,opacity]",
         e.myStatus === "needsAction" || e.myStatus === "tentative" ? "cal-event cal-event-open" : "cal-event",
         e.myStatus === "declined" && "opacity-50",
         over && e.myStatus !== "declined" && "opacity-65 hover:opacity-100",
         lifted && "!opacity-35",
+        draft && "z-20 !opacity-100 shadow-[var(--shadow-float)]",
         box.fromBefore && "rounded-t-none",
         box.toAfter && "rounded-b-none",
         // A button centres what's in it; a tall event reads from its top.
@@ -439,17 +513,24 @@ function EventBox({
         width: `calc(${100 / box.columns}% - 3px)`,
       }}
     >
-      <span
-        className={cn(
-          "block text-[12px] leading-[15px] font-medium",
-          narrow ? "text-[10.5px] leading-[12.5px] hyphens-auto" : "truncate",
-          e.myStatus === "declined" && "line-through",
-          compact && !narrow && "text-[11.5px]",
-        )}
-      >
-        {e.title || t("(No title)")}
-        {!tall && !compact && <span className="font-normal opacity-70"> · {formatTime(start)}</span>}
-      </span>
+      {(title || !tall) && (
+        <span
+          className={cn(
+            "block text-[12px] leading-[15px] font-medium",
+            narrow ? "text-[10.5px] leading-[12.5px] hyphens-auto" : "truncate",
+            e.myStatus === "declined" && "line-through",
+            compact && !narrow && "text-[11.5px]",
+          )}
+        >
+          {title}
+          {!tall && !compact && (
+            <span className="font-normal opacity-70">
+              {title ? " · " : ""}
+              {formatTime(start)}
+            </span>
+          )}
+        </span>
+      )}
       {tall && !narrow && (
         <span className="mt-px flex items-center gap-1 truncate text-[11px] leading-[14px] opacity-75">
           <span className="truncate">{compact ? formatTime(start) : time}</span>

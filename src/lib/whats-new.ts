@@ -66,6 +66,15 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-24-calendar-new-event-preview",
+    date: "2026-11-24",
+    icon: "calendar",
+    title: tk("See a new event in the calendar while you write it"),
+    body: tk(
+      "On the computer, the event shows in its place in the calendar as you fill it in: first just the time, then its name, and it moves when you change the time. Right-click an empty time to add an event there, or right-click an event to open, change or delete it.",
+    ),
+  },
+  {
     id: "2026-11-24-attachment-viewer",
     date: "2026-11-24",
     icon: "attachments",

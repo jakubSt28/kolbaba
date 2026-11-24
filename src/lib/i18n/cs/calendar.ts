@@ -30,6 +30,8 @@ export const calendar: Dictionary = {
   // Events
   "New event": "Nová událost",
   "Edit event": "Upravit událost",
+  "New event at {time}": "Nová událost v {time}",
+  "New all-day event": "Nová celodenní událost",
   "(No title)": "(Bez názvu)",
   "Add a title": "Přidej název",
   Title: "Název",

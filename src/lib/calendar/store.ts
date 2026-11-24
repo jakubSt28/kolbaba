@@ -67,6 +67,8 @@ interface CalendarState {
   syncedAt: number;
   openEvent: { id: string; rect: Rect } | null;
   editor: EditorState | null;
+  /** The editor's event as it's being filled in, drawn in the calendar behind it. */
+  preview: EventInput | null;
   adding: AddPage | null;
   /** One of Kolbaba's own calendars (or a followed link) being renamed. */
   renaming: string | null;
@@ -93,6 +95,7 @@ interface CalendarState {
   newEvent: (at?: { start: Date; end?: Date; allDay?: boolean }) => void;
   editEvent: (id: string) => void;
   closeEditor: () => void;
+  setPreview: (draft: EventInput | null) => void;
   saveEvent: (draft: EventInput, opts?: { eventId?: string; scope?: EditScope }) => Promise<boolean>;
   deleteEvent: (id: string, scope: EditScope) => Promise<void>;
   respond: (id: string, status: Exclude<AttendeeStatus, "needsAction">, scope: EditScope) => Promise<void>;
@@ -261,6 +264,7 @@ export const useCalendar = create<CalendarState>()((set, get) => {
     syncedAt: 0,
     openEvent: null,
     editor: null,
+    preview: null,
     adding: null,
     renaming: null,
     search: null,
@@ -382,6 +386,7 @@ export const useCalendar = create<CalendarState>()((set, get) => {
       const end = at?.end ?? (allDay ? addDays(startOfDay(start), 1) : new Date(start.getTime() + 3600_000));
       set({
         openEvent: null,
+        preview: null,
         editor: {
           draft: {
             // Nothing to write to yet: saving makes a calendar of Kolbaba's own first.
@@ -401,9 +406,10 @@ export const useCalendar = create<CalendarState>()((set, get) => {
     },
     editEvent: (id) => {
       const e = get().events.find((x) => x.id === id);
-      if (e) set({ openEvent: null, editor: { eventId: id, draft: draftOf(e) } });
+      if (e) set({ openEvent: null, preview: null, editor: { eventId: id, draft: draftOf(e) } });
     },
-    closeEditor: () => set({ editor: null }),
+    closeEditor: () => set({ editor: null, preview: null }),
+    setPreview: (preview) => set({ preview }),
 
     saveEvent: async (draft, opts = {}) => {
       let input = draft;
@@ -429,7 +435,7 @@ export const useCalendar = create<CalendarState>()((set, get) => {
         ...(input.reminder !== undefined ? { reminder: input.reminder } : {}),
       };
       // Shown at once; the server's answer replaces it (or takes it back).
-      set({ editor: null, events: opts.eventId ? before.map((e) => (e.id === opts.eventId ? shown : e)) : [...before, shown] });
+      set({ editor: null, preview: null, events: opts.eventId ? before.map((e) => (e.id === opts.eventId ? shown : e)) : [...before, shown] });
       track(opts.eventId ? "calEventEdit" : "calEventNew");
       if (!LIVE) return true;
       try {
@@ -661,6 +667,33 @@ export const reminderOf = (settings: CalendarSettings) => (settings.reminder ===
 export function visibleEvents(events: CalEvent[], calendars: Calendar[]) {
   const shown = new Set(calendars.filter((c) => c.visible).map((c) => c.id));
   return events.filter((e) => shown.has(e.calendarId));
+}
+
+/** The id the editor's new event has in the calendar while it's being filled in. */
+export const PREVIEW_ID = "__preview";
+
+/**
+ * The events with the editor's draft drawn in: an event being changed moves to where the form puts it, a new
+ * one appears there. Its calendar is shown even if it's hidden in the list, so the draft never vanishes.
+ */
+export function withPreview(events: CalEvent[], preview: EventInput | null, eventId: string | undefined): CalEvent[] {
+  if (!preview) return events;
+  const base = (eventId && events.find((e) => e.id === eventId)) || null;
+  const drawn: CalEvent = {
+    ...(base ?? { organizer: null, myStatus: null, joinUrl: null, url: null, canEdit: true, canRespond: false }),
+    id: base?.id ?? PREVIEW_ID,
+    calendarId: preview.calendarId,
+    title: preview.title,
+    location: preview.location,
+    description: preview.description,
+    start: preview.start,
+    end: preview.end,
+    allDay: preview.allDay,
+    recurring: !!preview.recurrence,
+    recurrence: preview.recurrence,
+    attendees: base?.attendees ?? [],
+  };
+  return [...events.filter((e) => e.id !== drawn.id), drawn];
 }
 
 /** The app comes back in the calendar or the tasks after a reload in the same window (a fresh launch opens the mail). */

@@ -3,7 +3,7 @@
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Menu, RefreshCw, Search } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { addDays, formatTitle, sameDay, visibleDays } from "@/lib/calendar/dates";
-import { useCalendar, visibleEvents } from "@/lib/calendar/store";
+import { useCalendar, visibleEvents, withPreview } from "@/lib/calendar/store";
 import type { CalendarView } from "@/lib/calendar/types";
 import { EDGE } from "@/lib/gestures";
 import { t } from "@/lib/i18n";
@@ -28,8 +28,11 @@ function useCalendarView() {
   const events = useCalendar((s) => s.events);
   const calendars = useCalendar((s) => s.calendars);
   const mode = useCalendar((s) => s.mode);
+  const preview = useCalendar((s) => s.preview);
+  const editing = useCalendar((s) => s.editor?.eventId);
   const days = useMemo(() => visibleDays(view, new Date(anchor)), [view, anchor]);
-  const shown = useMemo(() => visibleEvents(events, calendars), [events, calendars]);
+  // The event being written in the editor shows where it'll land, as it's filled in.
+  const shown = useMemo(() => withPreview(visibleEvents(events, calendars), preview, editing), [events, calendars, preview, editing]);
   const count = calendars.length;
 
   useEffect(() => {
