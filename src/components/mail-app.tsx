@@ -14,6 +14,7 @@ import { useShortcuts } from "@/lib/use-shortcuts";
 import { applyTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ShortcutsHost } from "./shortcuts-help";
+import { AttachmentViewerHost } from "./attachment-viewer";
 import { CommandPalette } from "./command-palette";
 import { ConfirmHost } from "./confirm";
 import { closeSnoozeSheet, SnoozeSheetHost } from "./swipe-row";
@@ -315,6 +316,7 @@ export function MailApp() {
             </>
           )}
           <CalendarHosts mobile={isMobile} />
+          <AttachmentViewerHost />
           <ConfirmHost />
           <CollectionHost />
           <SnoozeSheetHost />

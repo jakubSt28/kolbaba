@@ -9,6 +9,7 @@ import { useMail } from "@/lib/store";
 import type { FileItem, FileKindFilter } from "@/lib/types";
 import { cn, dateGroup, formatListTime } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
+import { openAttachment } from "./attachment-viewer";
 import { FileIcon } from "./file-icon";
 import { MailboxBadge, menuContentClass, menuItemClass } from "./ui";
 
@@ -77,6 +78,13 @@ export function FilesView({ mobile = false }: { mobile?: boolean }) {
     // `load` reads the same values `key` is made of.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  // The file opens right here; "Show in conversation" in the viewer leads to its email.
+  const openFile = (f: FileItem) =>
+    openAttachment(
+      state.files.map((x) => ({ ...x, reveal: () => void useMail.getState().openThreadById(x.threadId) })),
+      state.files.indexOf(f),
+    );
 
   const more = async () => {
     if (!state.next || state.loading) return;
@@ -153,8 +161,8 @@ export function FilesView({ mobile = false }: { mobile?: boolean }) {
                     key={f.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => void useMail.getState().openThreadById(f.threadId)}
-                    onKeyDown={(e) => e.key === "Enter" && void useMail.getState().openThreadById(f.threadId)}
+                    onClick={() => openFile(f)}
+                    onKeyDown={(e) => e.key === "Enter" && openFile(f)}
                     className={cn(
                       "group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-hover",
                       mobile ? "[&+&]:border-t [&+&]:border-line" : "rounded-[12px]",
@@ -178,6 +186,7 @@ export function FilesView({ mobile = false }: { mobile?: boolean }) {
                     </div>
                     <a
                       href={`${f.url}?download`}
+                      download={f.name}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={t("Download {name}", { name: f.name })}
                       className={cn(

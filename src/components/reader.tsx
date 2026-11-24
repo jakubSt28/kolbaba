@@ -45,6 +45,7 @@ import { DropdownMenu, Popover } from "radix-ui";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { copyCode, threadCode } from "@/lib/codes";
 import { downloadAll } from "@/lib/download";
+import { openAttachment } from "./attachment-viewer";
 import { FileIcon } from "./file-icon";
 import { ContactView } from "./contacts";
 import { InviteCard } from "./invite-card";
@@ -736,7 +737,7 @@ function MessageView({ message, thread, framed, onCollapse }: { message: Message
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
             {message.attachments.map((a, i) => (
-              <AttachmentCard key={`${i}-${a.name}`} attachment={a} />
+              <AttachmentCard key={`${i}-${a.name}`} attachments={message.attachments!} index={i} />
             ))}
           </div>
         </section>
@@ -902,10 +903,10 @@ function AttachmentsOverview({ thread, onJump }: { thread: Thread; onJump: (mess
         {items.length > 1 && <DownloadAllButton attachments={items.map(({ a }) => a)} subject={thread.subject} />}
       </div>
       <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 py-1 md:-mx-8 md:px-8">
-        {items.map(({ a, m }) => (
-          <Tooltip key={`${m.id}-${a.name}`} label={t("Show in conversation")} side="bottom">
+        {items.map(({ a, m }, i) => (
+          <Tooltip key={`${m.id}-${a.name}`} label={t("Open")} side="bottom">
             <button
-              onClick={() => onJump(m.id)}
+              onClick={() => openAttachment(items.map((x) => ({ ...x.a, reveal: () => onJump(x.m.id) })), i)}
               className="flex w-[228px] shrink-0 items-center gap-3 rounded-xl bg-solid p-2.5 text-left shadow-[var(--shadow-panel)] transition-[transform,box-shadow] hover:-translate-y-px hover:shadow-[var(--shadow-float)] active:translate-y-0"
             >
               <FileIcon kind={a.kind} />
@@ -953,21 +954,21 @@ function DownloadAllButton({ attachments, subject }: { attachments: Attachment[]
 }
 
 /**
- * Click opens the file in a new window if the browser can show it (images, PDFs, plain text) and downloads
- * anything else, where a new window would stay empty. The arrow, shown on hover (always on touch), always downloads.
+ * Click opens the file in Kolbaba's own viewer (with the other files of the email to flip through). The arrow,
+ * shown on hover (always on touch), downloads.
  */
-function AttachmentCard({ attachment }: { attachment: Attachment }) {
+function AttachmentCard({ attachments, index }: { attachments: Attachment[]; index: number }) {
+  const attachment = attachments[index];
   const { url, name } = attachment;
-  const open = attachment.opensInBrowser ? { href: url, target: "_blank", rel: "noopener" } : { href: url && `${url}?download`, download: name };
   return (
     <div className="group relative rounded-xl shadow-[inset_0_0_0_0.5px_var(--line)] transition-colors hover:bg-hover">
-      <a {...open} className="flex min-w-0 items-center gap-3 rounded-xl p-2.5 text-left pointer-coarse:pr-12">
+      <button onClick={() => openAttachment(attachments, index)} className="flex w-full min-w-0 items-center gap-3 rounded-xl p-2.5 text-left pointer-coarse:pr-12">
         <FileIcon kind={attachment.kind} />
         <span className="min-w-0">
           <span className="block truncate text-[13px] font-medium">{name}</span>
           <span className="block text-[12px] text-ink-3">{attachment.size}</span>
         </span>
-      </a>
+      </button>
       <Tooltip label={t("Download")} side="top">
         <a
           href={url && `${url}?download`}

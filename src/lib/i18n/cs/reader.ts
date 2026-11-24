@@ -107,6 +107,17 @@ export const reader: Dictionary = {
   "Download all": "Stáhnout vše",
   "Couldn't download the attachments. Try again in a moment.": "Přílohy se nepodařilo stáhnout. Zkus to za chvíli znovu.",
   "Show in conversation": "Zobrazit v konverzaci",
+  // Attachment viewer
+  "{i} of {n}": "{i} z {n}",
+  "Share or save": "Sdílet nebo uložit",
+  "Couldn't open {name}": "{name} se nepodařilo otevřít",
+  "The mail server didn't send the file. Try again in a moment.": "Poštovní server soubor neposlal. Zkus to za chvíli znovu.",
+  "Kolbaba can't show this kind of file. Open it in another app or save it.": "Tenhle typ souboru Kolbaba zobrazit neumí. Otevři ho v jiné aplikaci, nebo ho ulož.",
+  "Kolbaba can't show this kind of file. Download it and open it on your computer.": "Tenhle typ souboru Kolbaba zobrazit neumí. Stáhni si ho a otevři v počítači.",
+  "Open in another app": "Otevřít v jiné aplikaci",
+  "Previous file": "Předchozí soubor",
+  "Next file": "Další soubor",
+  "Try again": "Zkusit znovu",
 
   // Reader: action pill
   "Not spam": "Není spam",

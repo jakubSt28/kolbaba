@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "Attachments open right in Kolbaba": "Přílohy se otevírají přímo v Kolbabě",
+  "Photos, PDFs and text files open in Kolbaba, and the cross or Back closes them. The arrows go to the next file. On your phone, Share opens other files in another app or saves them to Files. In Files, tapping a file opens it.":
+    "Fotky, PDF a textové soubory se otevřou v Kolbabě a křížkem nebo gestem zpět je zase zavřeš. Šipkami přejdeš na další soubor. Na telefonu přes Sdílet otevřeš ostatní soubory v jiné aplikaci nebo je uložíš do Souborů. V sekci Soubory se soubor otevře klepnutím.",
   "Swipe to go back and to close things on your phone": "Na telefonu se vrátíš a zavřeš okno přejetím prstem",
   "On the phone, swipe right anywhere on an email, a task or a page of Settings to go back, not just from the edge. Swipe down to close a sheet: Settings, an event, the mailbox picker and more. Swipe in from the left edge to open the side menu. Swipe a task right to tick it off, or left to delete it. Adding a task now has a tick next to the field, and the keyboard goes down once it's added.":
     "Na telefonu přejeď prstem doprava kdekoli na e-mailu, úkolu nebo stránce Nastavení a vrátíš se zpět, už ne jen od okraje. Přejetím dolů zavřeš okno, které vyjelo zespodu: Nastavení, událost, výběr schránky a další. Přejetím od levého okraje otevřeš boční menu. Úkol přejetím doprava odškrtneš, doleva smažeš. Při přidávání úkolu je vedle pole fajfka a po přidání se klávesnice schová.",

@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
-import { opensInBrowser } from "@/lib/attachment-inline";
+import { attachmentKind, opensInBrowser } from "@/lib/attachment-inline";
 import type { Account, Attachment, Draft, Insight, InviteEvent, Message, Thread } from "@/lib/types";
 import type { schema } from "../db";
 import type { AttachmentMeta } from "../db/schema";
 import type { Invite } from "./ics";
+
+export { attachmentKind };
 
 /** Shapes the API returns. They match the client store types (src/lib/types.ts) so the UI is shared with mock mode. */
 
@@ -35,16 +37,6 @@ export function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-export function attachmentKind(name: string, mime: string): Attachment["kind"] {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (mime.startsWith("image/")) return "image";
-  if (mime === "application/pdf" || ext === "pdf") return "pdf";
-  if (mime === "text/calendar" || ext === "ics") return "calendar";
-  if (/zip|compressed|x-tar|x-7z|rar/.test(mime) || ["zip", "rar", "7z", "gz", "tar"].includes(ext)) return "zip";
-  if (/sheet|excel|csv/.test(mime) || ["xls", "xlsx", "csv", "numbers", "ods"].includes(ext)) return "sheet";
-  return "doc";
 }
 
 export function attachmentDto(messageId: string, a: AttachmentMeta): Attachment {

@@ -66,6 +66,16 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-24-attachment-viewer",
+    date: "2026-11-24",
+    icon: "attachments",
+    title: tk("Attachments open right in Kolbaba"),
+    body: tk(
+      "Photos, PDFs and text files open in Kolbaba, and the cross or Back closes them. The arrows go to the next file. On your phone, Share opens other files in another app or saves them to Files. In Files, tapping a file opens it.",
+    ),
+    action: "files",
+  },
+  {
     id: "2026-11-23-phone-swipes",
     date: "2026-11-23",
     icon: "swipe",

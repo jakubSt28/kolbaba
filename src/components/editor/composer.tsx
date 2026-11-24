@@ -32,8 +32,9 @@ import { DropdownMenu } from "radix-ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { intlLocale, t, tn } from "@/lib/i18n";
 import { LIVE, loadContacts, saveDraftNow } from "@/lib/live";
-import { opensInBrowser } from "@/lib/attachment-inline";
+import { attachmentKind } from "@/lib/attachment-inline";
 import { forwardCopy } from "@/lib/forward-files";
+import { openAttachment } from "../attachment-viewer";
 import { attachmentPreviewUrl, deleteAttachment, formatSize, MAX_ATTACHMENTS_BYTES, shrinkPhoto, uploadAttachment } from "@/lib/uploads";
 import { getContacts, useMail } from "@/lib/store";
 import type { Draft, DraftAttachment, Person } from "@/lib/types";
@@ -699,13 +700,18 @@ function AttachmentChips({
               {a.id.startsWith("local_") ? (
                 <span className="truncate">{a.name}</span>
               ) : (
-                <a
-                  href={attachmentPreviewUrl(draftId, a.id)}
-                  {...(opensInBrowser(a.mime) ? { target: "_blank", rel: "noreferrer" } : { download: a.name })}
+                <button
+                  onClick={() => {
+                    const files = attachments.filter((x) => !x.id.startsWith("local_"));
+                    openAttachment(
+                      files.map((x) => ({ name: x.name, size: formatSize(x.size, intlLocale()), kind: attachmentKind(x.name, x.mime), url: attachmentPreviewUrl(draftId, x.id) })),
+                      files.indexOf(a),
+                    );
+                  }}
                   className="truncate hover:underline"
                 >
                   {a.name}
-                </a>
+                </button>
               )}
               <span className="shrink-0 text-ink-3">{formatSize(a.size, intlLocale())}</span>
               <button onClick={() => onRemove(a)} className={x} aria-label={t("Remove {name}", { name: a.name })}>

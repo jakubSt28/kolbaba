@@ -20,6 +20,8 @@ export function useShortcuts(enabled: boolean) {
     const onKey = (e: KeyboardEvent) => {
       // A confirmation is asking something; it handles its own keys.
       if (document.querySelector("[role=alertdialog]")) return;
+      // An open attachment takes the keys: Escape closes it, the arrows flip files, nothing reaches the mail.
+      if (document.querySelector("[data-attachment-viewer]")) return;
       const s = useMail.getState();
       const mod = e.metaKey || e.ctrlKey;
 
