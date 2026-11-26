@@ -48,7 +48,7 @@ export function openAttachment(files: ViewerFile[], index = 0) {
 
 const close = () => useViewer.setState({ open: false });
 
-/** Behind an open file, and the phone's status bar above it (also in globals.css, .top-viewer). Solid: the mail showing through looked like a mistake. */
+/** Behind an open file, and the phone's status bar above it . Solid: the mail showing through looked like a mistake. */
 const VIEWER_BACKGROUND = "#0b0b0c";
 
 const canShareFiles = () =>
@@ -118,7 +118,7 @@ export function AttachmentViewerHost() {
   }, [open]);
 
   // The browser's bar in the viewer's colour too (Chrome on Android, Safari before iOS 26). The Home Screen
-  // app's status bar is #top-edge, which follows .top-viewer below (globals.css).
+  // app's status bar follows the overlay's .top-dim (src/lib/top-edge.ts).
   useEffect(() => {
     if (!open) return;
     const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((meta) => [meta, meta.content] as const);
@@ -133,7 +133,7 @@ export function AttachmentViewerHost() {
     <Dialog.Root open={open && !!file} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
         <Dialog.Overlay
-          className="top-viewer fixed inset-0 z-[60] data-[state=open]:animate-[fade-in_140ms_ease-out]"
+          className="top-dim fixed inset-0 z-[60] data-[state=closed]:animate-[fade-out_140ms_ease-in] data-[state=open]:animate-[fade-in_140ms_ease-out]"
           style={{ background: VIEWER_BACKGROUND }}
         />
         <Dialog.Content
@@ -145,7 +145,7 @@ export function AttachmentViewerHost() {
             if (e.key === "ArrowLeft" && index > 0) useViewer.setState({ index: index - 1 });
             if (e.key === "ArrowRight" && index < files.length - 1) useViewer.setState({ index: index + 1 });
           }}
-          className="fixed inset-0 z-[60] flex flex-col text-white outline-none data-[state=open]:animate-[fade-in_140ms_ease-out]"
+          className="fixed inset-0 z-[60] flex flex-col text-white outline-none data-[state=closed]:animate-[fade-out_140ms_ease-in] data-[state=open]:animate-[fade-in_140ms_ease-out]"
         >
           <div className="flex min-h-0 flex-1 flex-col pb-[max(12px,env(safe-area-inset-bottom))]">
             {file && <Viewer key={`${index}-${file.url}`} file={file} index={index} count={files.length} />}

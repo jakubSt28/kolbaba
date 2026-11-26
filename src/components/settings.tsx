@@ -196,7 +196,7 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/25"
+            className="top-dim fixed inset-0 z-40 bg-black/25"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

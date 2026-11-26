@@ -292,7 +292,7 @@ export function InstallGuideHost({ mobile }: { mobile: boolean }) {
         {guide && (
           <motion.div
             key="install-scrim"
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
+            className="top-dim fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.12 } }}
@@ -323,7 +323,7 @@ export function InstallGuideHost({ mobile }: { mobile: boolean }) {
         <>
           <motion.div
             key="install-scrim"
-            className="fixed inset-0 z-[60] bg-black/25"
+            className="top-dim fixed inset-0 z-[60] bg-black/25"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

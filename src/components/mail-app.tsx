@@ -24,6 +24,7 @@ import { MobileShell } from "./mobile-shell";
 import { Reader } from "./reader";
 import { watchShortViewport } from "@/lib/standalone-viewport";
 import { watchKeyboard } from "@/lib/keyboard";
+import { watchTopEdge } from "@/lib/top-edge";
 import { FeedbackHost } from "./feedback";
 import { InstallGuideHost } from "./install-guide";
 import { SettingsHost } from "./settings";
@@ -255,6 +256,8 @@ export function MailApp() {
   useEffect(() => watchShortViewport(), []);
   // Phone: while the on-screen keyboard is up, the shell is the area above it (src/lib/keyboard.ts).
   useEffect(() => watchKeyboard(), []);
+  // Home Screen app: the status bar strip fades with every backdrop under it (src/lib/top-edge.ts).
+  useEffect(() => watchTopEdge(), []);
 
   useEffect(() => {
     // Handy for poking at the prototype from devtools.

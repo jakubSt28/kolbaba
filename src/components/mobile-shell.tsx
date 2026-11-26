@@ -19,7 +19,7 @@ import { CategoryList } from "./category-view";
 import { FilesView } from "./files-view";
 import { ContactsList, ContactView } from "./contacts";
 import { ScreenerBanner, ScreenerList } from "./screener";
-import { InstallBanner, useInstallGuide } from "./install-guide";
+import { InstallBanner } from "./install-guide";
 import { NotifyBanner } from "./notify-banner";
 import { ListsView } from "./lists-view";
 import { AwayBanner } from "./away-settings";
@@ -54,12 +54,10 @@ import { NoMailbox } from "./welcome";
 
 const pushSpring = { type: "spring", stiffness: 380, damping: 38, mass: 0.9 } as const;
 
-/** The canvas under the bg-black/25 of a sheet, the drawer or a picker. */
-const DIMMED_CANVAS = "color-mix(in srgb, var(--canvas), black 25%)";
-
 /**
  * The status bar strip of the Home Screen app (#top-edge in the root layout) in the colour of what's
- * under it: the canvas, a thread's surface, or the canvas dimmed behind an overlay.
+ * under it: the canvas or a thread's surface. Backdrops over it (.top-dim) it mixes in as they fade
+ * (src/lib/top-edge.ts).
  */
 function useTopEdge(color: string | null) {
   useEffect(() => {
@@ -78,13 +76,11 @@ export function MobileShell() {
   const pushed = active?.kind === "thread" || active?.kind === "contact" ? active : null;
   const sheet = active && active.kind !== "thread" && active.kind !== "contact" ? active : null;
   const [picking, setPicking] = useState(false);
-  const guide = useInstallGuide((s) => !!s.open);
-  const dimmed = useMail((s) => !!sheet || s.drawerOpen || s.settingsOpen) || picking || guide;
   // The mail stays mounted under the calendar and the tasks: there, its open thread isn't what's on top.
   const mode = useCalendar((s) => s.mode);
   const taskOpen = useTasks((s) => !!s.selectedId && s.tasks.some((x) => x.id === s.selectedId));
   const onTop = mode === "mail" ? !!pushed : mode === "tasks" && taskOpen;
-  useTopEdge(onTop ? "var(--solid)" : dimmed ? DIMMED_CANVAS : null);
+  useTopEdge(onTop ? "var(--solid)" : null);
 
   return (
     // A plain canvas on the phone: the soft colour fields read as smudges under the status bar.
@@ -94,7 +90,7 @@ export function MobileShell() {
        * bar strip above it, or the sheet's rounded corners show a light seam right below the strip.
        */}
       <motion.div
-        className="pointer-events-none absolute inset-0 bg-black"
+        className="top-dim pointer-events-none absolute inset-0 bg-black"
         initial={false}
         animate={{ opacity: sheet ? 0.25 : 0 }}
         transition={pushSpring}
@@ -165,7 +161,7 @@ function MailboxSheet({ open, onClose }: { open: boolean; onClose: () => void })
       {open && (
         <>
           <motion.div
-            className="absolute inset-0 z-40 bg-black/25"
+            className="top-dim absolute inset-0 z-40 bg-black/25"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -559,7 +555,7 @@ export function Drawer() {
       {open && (
         <>
           <motion.div
-            className="absolute inset-0 z-40 bg-black/25"
+            className="top-dim absolute inset-0 z-40 bg-black/25"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
