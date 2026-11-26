@@ -6,8 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
 import type { Attachment } from "@/lib/types";
+import { officeKind, readDocx, readSheets, type Sheet } from "@/lib/office-preview";
 import { cn } from "@/lib/utils";
 import { FileIcon } from "./file-icon";
+import { DocxView, SheetView } from "./office-view";
 
 /** One file the viewer can show: an attachment of a received email or of a draft. */
 export interface ViewerFile {
@@ -49,10 +51,30 @@ const canShareFiles = () =>
     files: [new File([""], "x.txt", { type: "text/plain" })],
   });
 
-type Loaded = { state: "loading" } | { state: "error" } | { state: "ready"; blob: Blob; objectUrl: string; text?: string };
+/** A spreadsheet or Word document, read into something the page can draw. */
+type Office = { kind: "sheet"; sheets: Sheet[] } | { kind: "docx"; html: string };
+
+type Loaded =
+  | { state: "loading" }
+  | { state: "error" }
+  | { state: "ready"; blob: Blob; objectUrl: string; text?: string; office?: Office };
+
+/** Reads a spreadsheet or Word document; one it can't read gets the Download / Share card. */
+async function readOffice(name: string, blob: Blob): Promise<Office | undefined> {
+  const kind = officeKind(name);
+  if (!kind) return undefined;
+  try {
+    const data = await blob.arrayBuffer();
+    return kind === "sheet" ? { kind, sheets: await readSheets(data, name) } : { kind, html: await readDocx(data) };
+  } catch (err) {
+    console.warn("Couldn't read the file for a preview", err);
+    return undefined;
+  }
+}
 
 /** What the browser can draw on the page itself; the rest gets a card with Download / Share. */
-function previewOf(file: ViewerFile, blob: Blob): "image" | "pdf" | "text" | null {
+function previewOf(file: ViewerFile, blob: Blob, office?: Office): "image" | "pdf" | "text" | "sheet" | "docx" | null {
+  if (office) return office.kind;
   const type = blob.type.split(";")[0].toLowerCase();
   if (/^image\/(png|jpe?g|gif|webp|avif|heic|heif)$/.test(type)) return "image";
   if (type === "application/pdf" || file.kind === "pdf") return type === "application/octet-stream" ? null : "pdf";
@@ -117,10 +139,11 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
         const res = await fetch(file.url!);
         if (!res.ok) throw new Error(String(res.status));
         const blob = await res.blob();
-        const text = blob.type.startsWith("text/plain") ? await blob.text() : undefined;
+        const office = await readOffice(file.name, blob);
+        const text = !office && blob.type.startsWith("text/plain") ? await blob.text() : undefined;
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
-        setLoaded({ state: "ready", blob, objectUrl, text });
+        setLoaded({ state: "ready", blob, objectUrl, text, office });
       } catch {
         if (!cancelled) setLoaded({ state: "error" });
       }
@@ -129,10 +152,10 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [file.url, attempt]);
+  }, [file.url, file.name, attempt]);
 
   const ready = loaded.state === "ready" ? loaded : null;
-  const kind = ready ? previewOf(file, ready.blob) : null;
+  const kind = ready ? previewOf(file, ready.blob, ready.office) : null;
 
   const download = useCallback(() => {
     const a = document.createElement("a");
@@ -219,6 +242,8 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
         {ready && kind === "text" && (
           <pre className="size-full overflow-auto rounded-lg bg-white p-4 text-[13px] leading-relaxed whitespace-pre-wrap text-black">{ready.text}</pre>
         )}
+        {ready?.office?.kind === "sheet" && <SheetView sheets={ready.office.sheets} />}
+        {ready?.office?.kind === "docx" && <DocxView html={ready.office.html} title={file.name} />}
         {ready && !kind && (
           <div className="flex max-w-[340px] flex-col items-center gap-3 text-center">
             <FileIcon kind={file.kind} size={64} />

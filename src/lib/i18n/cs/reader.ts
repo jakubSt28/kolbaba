@@ -117,6 +117,9 @@ export const reader: Dictionary = {
   "Open in another app": "Otevřít v jiné aplikaci",
   "Previous file": "Předchozí soubor",
   "Next file": "Další soubor",
+  "This sheet is empty.": "Tenhle list je prázdný.",
+  "Kolbaba shows the first {rows} rows and {cols} columns. Download the file to see all of it.":
+    "Kolbaba ukazuje prvních {rows} řádků a {cols} sloupců. Celé to uvidíš ve staženém souboru.",
   "Try again": "Zkusit znovu",
 
   // Reader: action pill

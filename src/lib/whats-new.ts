@@ -66,6 +66,16 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-26-office-attachments",
+    date: "2026-11-26",
+    icon: "attachments",
+    title: tk("Excel spreadsheets and Word documents open right in Kolbaba"),
+    body: tk(
+      "Tap an Excel, CSV or OpenDocument spreadsheet and it opens as a table, with a tab for each sheet. Word documents (.docx) open as a page you can read. No download, on the phone too.",
+    ),
+    action: "files",
+  },
+  {
     id: "2026-11-24-calendar-new-event-preview",
     date: "2026-11-24",
     icon: "calendar",
