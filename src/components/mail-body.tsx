@@ -27,8 +27,11 @@ function cssVar(name: string) {
 function srcDoc(html: string, rich: boolean, dark: boolean, allowRemote: boolean) {
   // `anywhere` lets a table squeeze a column down to one letter a line (Alza's footer); newsletters expect words to stay whole.
   // Rich mail's own `:root{color-scheme:light dark}` would outrank a plain `html` rule.
+  // On a phone rich mail runs to the frame's edge, as in Apple Mail: a white margin around a dark newsletter
+  // reads as a frame, and every pixel of width means a smaller zoom for mail built for a fixed width.
   const theme = rich
-    ? `html{background:#fff;color:#111;color-scheme:light!important}body{padding:20px;overflow-wrap:break-word}`
+    ? `html{background:#fff;color:#111;color-scheme:light!important}body{padding:20px;overflow-wrap:break-word}
+       @media (max-width:480px){body{padding:0}}`
     : `html{background:transparent;color:${cssVar("--ink")}!important;color-scheme:light dark}
        a{color:${cssVar("--accent-text")}}
        blockquote{border-left:2px solid ${cssVar("--line")};margin:0 0 .85em;padding-left:12px;color:${cssVar("--ink-2")}}`;
@@ -47,19 +50,67 @@ ${theme}
 </style></head><body><mail-fit>${pinColorScheme(html, !rich && dark ? "dark" : "light")}</mail-fit></body></html>`;
 }
 
+/** Widths mail is designed at; a number outside them is a spacer or a whole-page table, not the layout. */
+const DESIGN_WIDTH = { min: 420, max: 900 };
+
 /**
- * Mail built for a fixed width (Alza's `min-width:600px` table) can't narrow to a phone, so it's
- * shrunk to fit, as Apple Mail does. Its own mobile CSS goes first: media queries still see the
- * frame's real width, and only what overflows after them is scaled. The zoom is on a wrapper so the
- * body, which is measured, keeps plain CSS pixels.
+ * The width a mail without any mobile CSS was laid out for: its widest fixed table or cell (500px for
+ * a ticket shop's order mail, 600px for most newsletters). `0` when it has a media query (it narrows itself) or no fixed width.
  */
-function fitWidth(d: Document) {
+function designedWidth(d: Document): number {
+  const box = d.querySelector("mail-fit");
+  if (!box) return 0;
+  for (const style of box.querySelectorAll("style")) if (/@media/i.test(style.textContent ?? "")) return 0;
+  let widest = 0;
+  for (const el of box.querySelectorAll<HTMLElement>("table, td, th, div")) {
+    // `width="600"` with `width:100%` or a max-width in its style is a fluid layout that narrows by itself.
+    const fluid = /%/.test(el.style.width) || !!el.style.maxWidth;
+    const values = [fluid ? "" : (el.getAttribute("width") ?? ""), el.style.width, el.style.minWidth];
+    for (const value of values) {
+      const px = /^\s*(\d+)\s*(px)?\s*$/i.exec(value)?.[1];
+      const n = px ? Number(px) : 0;
+      if (n >= DESIGN_WIDTH.min && n <= DESIGN_WIDTH.max) widest = Math.max(widest, n);
+    }
+  }
+  return widest;
+}
+
+/**
+ * Mail built for a fixed width can't narrow to a phone, so it's shown at that width and shrunk to fit, as
+ * Apple Mail does. Squeezed into the frame instead, a ticket shop's 500px mail broke its 55px heading and
+ * 18px text into narrow columns, and Alza's `min-width:600px` table ran off the edge. A mail with its own
+ * mobile CSS is left to it: media queries see the frame's real width, and only what still overflows is
+ * scaled. The zoom is on a wrapper so the body, which is measured, keeps plain CSS pixels.
+ */
+function fitWidth(d: Document, designed: number) {
   const box = d.querySelector<HTMLElement>("mail-fit");
   if (!box) return;
   box.style.zoom = "";
+  box.style.width = "";
   const room = box.clientWidth;
-  const need = box.scrollWidth;
-  if (room > 0 && need > room + 1) box.style.zoom = String(room / need);
+  if (room <= 0) return;
+  if (designed > room) box.style.width = `${designed}px`;
+  const need = Math.max(box.scrollWidth, designed > room ? designed : 0);
+  if (need > room + 1) box.style.zoom = String(room / need);
+}
+
+/**
+ * A newsletter painted on a colour (a dark grey, say) has it on its `<body>`, which the server turns
+ * into the first wrapper. That colour goes on the whole frame, so the margin and the rounded corners around
+ * the mail are its own colour, not a white frame.
+ */
+function extendBackground(body: HTMLElement) {
+  const root = body.ownerDocument.documentElement;
+  root.style.background = "";
+  const view = body.ownerDocument.defaultView;
+  const first = [...(body.querySelector("mail-fit")?.children ?? [])].find((el) => !/^(style|link|meta|title)$/i.test(el.tagName));
+  if (!view || !first) return;
+  const colour = view.getComputedStyle(first).backgroundColor;
+  const alpha = /rgba\([^)]*,\s*([\d.]+)\)$/.exec(colour)?.[1];
+  if (!colour || colour === "transparent" || (alpha !== undefined && Number(alpha) < 0.95)) return;
+  // Only a background behind the whole mail: a coloured banner on top isn't the page.
+  if (first.getBoundingClientRect().width < body.clientWidth * 0.9) return;
+  root.style.background = colour;
 }
 
 function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boolean }) {
@@ -76,16 +127,21 @@ function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boole
     let observer: ResizeObserver | undefined;
     let raf = 0;
     let unforward = () => {};
+    let designed = 0;
     const measure = () => {
       const d = frame.contentDocument;
       if (!d?.body) return;
-      fitWidth(d);
+      fitWidth(d, designed);
       // Measure the body, not the document: documentElement never reports less than the frame itself.
       setHeight(Math.ceil(d.body.getBoundingClientRect().height));
     };
     const onLoad = () => {
       const body = frame.contentDocument?.body;
-      if (body && !rich) keepTextReadable(body, cssVar("--solid"));
+      if (!body?.querySelector("mail-fit")) return;
+      observer?.disconnect();
+      if (!rich) keepTextReadable(body, cssVar("--solid"));
+      if (rich) extendBackground(body);
+      designed = rich ? designedWidth(body.ownerDocument) : 0;
       // A swipe back on the phone also works over the email itself.
       unforward();
       unforward = forwardSwipes(frame);
@@ -100,6 +156,8 @@ function SandboxedBody({ html, allowRemote }: { html: string; allowRemote: boole
       }
     };
     frame.addEventListener("load", onLoad);
+    // Safari can finish a srcdoc frame before this runs, and its load event is then already gone.
+    if (frame.contentDocument?.readyState === "complete") onLoad();
     return () => {
       frame.removeEventListener("load", onLoad);
       unforward();
