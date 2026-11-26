@@ -66,6 +66,16 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-26-attachment-viewer-strip",
+    date: "2026-11-26",
+    icon: "attachments",
+    title: tk("See all of an email's files in a row, and zoom into photos and PDFs"),
+    body: tk(
+      "Open an attachment and the email's other files show in a row under it: click one to switch, or use the arrow keys. Zoom into a photo or a PDF with a pinch, the mouse wheel or a double tap. On the phone, swipe a photo sideways for the next file and down to close it. PDFs open on every device with all their pages, and you can select and copy their text. Videos and voice recordings play right there. Escape closes the file.",
+    ),
+    action: "files",
+  },
+  {
     id: "2026-11-26-office-attachments",
     date: "2026-11-26",
     icon: "attachments",

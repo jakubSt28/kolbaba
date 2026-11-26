@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@/lib/i18n";
 import { columnName, MAX_COLS, MAX_ROWS, type Sheet } from "@/lib/office-preview";
 import { cn } from "@/lib/utils";
@@ -97,14 +97,40 @@ export function SheetView({ sheets }: { sheets: Sheet[] }) {
   );
 }
 
-/** A Word document, in a frame that runs no script and loads nothing from the internet. */
-export function DocxView({ html, title }: { html: string; title: string }) {
+const DOCUMENT_STYLE = `
+  :host { display: block; color: #111; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow-wrap: anywhere; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 24px 48px; }
+  h1, h2, h3, h4, h5, h6 { line-height: 1.25; margin: 1.4em 0 0.5em; }
+  h1:first-child, h2:first-child, p:first-child { margin-top: 0; }
+  p { margin: 0 0 0.8em; }
+  img { max-width: 100%; height: auto; }
+  table { border-collapse: collapse; margin: 1em 0; max-width: 100%; display: block; overflow-x: auto; }
+  td, th { border: 1px solid #d4d4d4; padding: 4px 8px; vertical-align: top; text-align: left; }
+  td p, th p { margin: 0; }
+  a { color: #2563eb; }
+  @media (max-width: 600px) { main { padding: 20px 16px 32px; } }
+`;
+
+/**
+ * A Word document as a page to read. Its HTML is already cleaned (readDocx); it sits in a shadow root so the
+ * app's styles and the document's don't touch. Not a frame: a frame keeps the keys to itself, and Escape
+ * wouldn't close the file.
+ */
+export function DocxView({ html }: { html: string }) {
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    const root = el.shadowRoot ?? el.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = DOCUMENT_STYLE;
+    const main = document.createElement("main");
+    main.innerHTML = html;
+    root.replaceChildren(style, main);
+  }, [html]);
   return (
-    <iframe
-      srcDoc={html}
-      title={title}
-      sandbox="allow-popups allow-popups-to-escape-sandbox"
-      className="size-full rounded-lg bg-white"
-    />
+    <div className="size-full overflow-auto overscroll-contain rounded-lg bg-white">
+      <div ref={host} />
+    </div>
   );
 }

@@ -2,14 +2,18 @@
 
 import { ChevronLeft, ChevronRight, Download, LoaderCircle, MessageSquareText, RotateCw, Share, X } from "lucide-react";
 import { Dialog } from "radix-ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { t } from "@/lib/i18n";
 import type { Attachment } from "@/lib/types";
-import { officeKind, readDocx, readSheets, type Sheet } from "@/lib/office-preview";
+import { clearFiles, loadFile, thumbnail } from "@/lib/attachment-cache";
+import { decodeText, MAX_TEXT_CHARS, type Preview } from "@/lib/attachment-preview";
+import { readDocx, readSheets, type Sheet } from "@/lib/office-preview";
 import { cn } from "@/lib/utils";
-import { FileIcon } from "./file-icon";
+import { ATTACHMENT_ICONS, FileIcon } from "./file-icon";
+import { ImageView } from "./image-view";
 import { DocxView, SheetView } from "./office-view";
+import { PdfView } from "./pdf-view";
 
 /** One file the viewer can show: an attachment of a received email or of a draft. */
 export interface ViewerFile {
@@ -51,35 +55,40 @@ const canShareFiles = () =>
     files: [new File([""], "x.txt", { type: "text/plain" })],
   });
 
-/** A spreadsheet or Word document, read into something the page can draw. */
-type Office = { kind: "sheet"; sheets: Sheet[] } | { kind: "docx"; html: string };
+/** A file made ready to draw. `null`: Kolbaba has no way to show this kind, and offers the file itself. */
+type Shown =
+  | { kind: "image" | "video" | "audio"; url: string }
+  | { kind: "pdf" }
+  | { kind: "text"; text: string; cut: boolean }
+  | { kind: "sheet"; sheets: Sheet[] }
+  | { kind: "docx"; html: string }
+  | null;
 
 type Loaded =
   | { state: "loading" }
   | { state: "error" }
-  | { state: "ready"; blob: Blob; objectUrl: string; text?: string; office?: Office };
+  /** `type` is what the file really is, for the share sheet. `broken`: a kind Kolbaba shows, but this file couldn't be read. */
+  | { state: "ready"; blob: Blob; type: string; shown: Shown; broken: boolean };
 
-/** Reads a spreadsheet or Word document; one it can't read gets the Download / Share card. */
-async function readOffice(name: string, blob: Blob): Promise<Office | undefined> {
-  const kind = officeKind(name);
-  if (!kind) return undefined;
-  try {
-    const data = await blob.arrayBuffer();
-    return kind === "sheet" ? { kind, sheets: await readSheets(data, name) } : { kind, html: await readDocx(data) };
-  } catch (err) {
-    console.warn("Couldn't read the file for a preview", err);
-    return undefined;
+/** Reads the file into what its kind needs. Throws when the file is damaged; the viewer then offers the file itself. */
+async function prepare(name: string, blob: Blob, preview: Preview): Promise<NonNullable<Shown>> {
+  switch (preview.kind) {
+    case "image":
+    case "video":
+    case "audio":
+      // The server sends most files as "application/octet-stream"; the browser draws and plays by the real type.
+      return { kind: preview.kind, url: URL.createObjectURL(new Blob([blob], { type: preview.mime })) };
+    case "pdf":
+      return { kind: "pdf" };
+    case "text": {
+      const text = decodeText(new Uint8Array(await blob.arrayBuffer()));
+      return { kind: "text", text: text.slice(0, MAX_TEXT_CHARS), cut: text.length > MAX_TEXT_CHARS };
+    }
+    case "sheet":
+      return { kind: "sheet", sheets: await readSheets(await blob.arrayBuffer(), name) };
+    case "docx":
+      return { kind: "docx", html: await readDocx(await blob.arrayBuffer()) };
   }
-}
-
-/** What the browser can draw on the page itself; the rest gets a card with Download / Share. */
-function previewOf(file: ViewerFile, blob: Blob, office?: Office): "image" | "pdf" | "text" | "sheet" | "docx" | null {
-  if (office) return office.kind;
-  const type = blob.type.split(";")[0].toLowerCase();
-  if (/^image\/(png|jpe?g|gif|webp|avif|heic|heif)$/.test(type)) return "image";
-  if (type === "application/pdf" || file.kind === "pdf") return type === "application/octet-stream" ? null : "pdf";
-  if (type === "text/plain") return "text";
-  return null;
 }
 
 export function AttachmentViewerHost() {
@@ -100,21 +109,31 @@ export function AttachmentViewerHost() {
     };
   }, [open]);
 
+  // The downloaded files are kept only while the viewer is open.
+  useEffect(() => {
+    if (!open) clearFiles();
+  }, [open]);
+
   const file = files[index];
   return (
     <Dialog.Root open={open && !!file} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/95 data-[state=open]:animate-[fade-in_140ms_ease-out]" />
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-neutral-950/[0.98] data-[state=open]:animate-[fade-in_140ms_ease-out]" />
         <Dialog.Content
           aria-describedby={undefined}
           data-attachment-viewer=""
           onKeyDown={(e) => {
+            // In a video or a recording the arrows seek.
+            if ((e.target as HTMLElement).closest?.("video, audio")) return;
             if (e.key === "ArrowLeft" && index > 0) useViewer.setState({ index: index - 1 });
             if (e.key === "ArrowRight" && index < files.length - 1) useViewer.setState({ index: index + 1 });
           }}
           className="fixed inset-0 z-[60] flex flex-col text-white outline-none data-[state=open]:animate-[fade-in_140ms_ease-out]"
         >
-          {file && <Viewer key={`${index}-${file.url}`} file={file} index={index} count={files.length} />}
+          <div className="flex min-h-0 flex-1 flex-col pb-[max(12px,env(safe-area-inset-bottom))]">
+            {file && <Viewer key={`${index}-${file.url}`} file={file} index={index} count={files.length} />}
+            {files.length > 1 && <Filmstrip files={files} index={index} />}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -128,25 +147,35 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
   const [loaded, setLoaded] = useState<Loaded>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
   // Phones hand the file to another app (Files, Word, Numbers…); computers download it.
-  const [phone] = useState(() => matchMedia("(pointer: coarse)").matches && canShareFiles());
+  const [touch] = useState(() => matchMedia("(pointer: coarse)").matches);
+  const [phone] = useState(() => touch && canShareFiles());
 
   useEffect(() => {
     if (!file.url) return;
     let objectUrl: string | undefined;
     let cancelled = false;
     (async () => {
+      let blob: Blob;
+      let preview: Preview | null;
       try {
-        const res = await fetch(file.url!);
-        if (!res.ok) throw new Error(String(res.status));
-        const blob = await res.blob();
-        const office = await readOffice(file.name, blob);
-        const text = !office && blob.type.startsWith("text/plain") ? await blob.text() : undefined;
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setLoaded({ state: "ready", blob, objectUrl, text, office });
+        ({ blob, preview } = await loadFile(file.name, file.url!));
       } catch {
         if (!cancelled) setLoaded({ state: "error" });
+        return;
       }
+      let shown: Shown = null;
+      try {
+        if (preview) shown = await prepare(file.name, blob, preview);
+      } catch (err) {
+        console.warn("Couldn't read the file for a preview", err);
+      }
+      if (shown && "url" in shown) objectUrl = shown.url;
+      if (cancelled) {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      const type = preview?.kind === "pdf" ? "application/pdf" : (preview?.mime ?? (blob.type === "application/octet-stream" ? "" : blob.type));
+      setLoaded({ state: "ready", blob, type, shown, broken: !!preview && !shown });
     })();
     return () => {
       cancelled = true;
@@ -155,7 +184,9 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
   }, [file.url, file.name, attempt]);
 
   const ready = loaded.state === "ready" ? loaded : null;
-  const kind = ready ? previewOf(file, ready.blob, ready.office) : null;
+  const shown = ready?.shown ?? null;
+  /** The file turned out damaged while drawing (a picture this browser can't decode, a PDF with a password). */
+  const fail = useCallback(() => setLoaded((l) => (l.state === "ready" ? { ...l, shown: null, broken: true } : l)), []);
 
   const download = useCallback(() => {
     const a = document.createElement("a");
@@ -169,11 +200,21 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
   // The file is already here, so the share sheet opens straight from the tap (Safari wants that).
   const shareFile = useCallback(() => {
     if (!ready) return;
-    const type = ready.blob.type === "application/octet-stream" ? "" : ready.blob.type;
-    void navigator.share({ files: [new File([ready.blob], file.name, { type })] }).catch(() => {});
+    void navigator.share({ files: [new File([ready.blob], file.name, { type: ready.type })] }).catch(() => {});
   }, [ready, file.name]);
 
   const go = (to: number) => useViewer.setState({ index: to });
+  const step = useCallback(
+    (by: -1 | 1) => {
+      const to = index + by;
+      if (to < 0 || to >= count) return false;
+      useViewer.setState({ index: to });
+      return true;
+    },
+    [index, count],
+  );
+  // A document fills the window, so arrows over it would cover what you read: the strip and the keys flip those.
+  const arrows = count > 1 && !touch && !(shown && ["pdf", "sheet", "docx", "text"].includes(shown.kind));
 
   return (
     <>
@@ -211,7 +252,7 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
       </header>
 
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center px-3 pb-[max(12px,env(safe-area-inset-bottom))]"
+        className="relative flex min-h-0 flex-1 items-center justify-center px-3"
         // A tap on the dark area around the file closes it, like a photo viewer.
         onClick={(e) => e.target === e.currentTarget && close()}
       >
@@ -234,24 +275,36 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
           </div>
         )}
 
-        {ready && kind === "image" && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ready.objectUrl} alt={file.name} className="max-h-full max-w-full rounded-md object-contain shadow-2xl" />
+        {shown?.kind === "image" && <ImageView url={shown.url} name={file.name} onFail={fail} onClose={close} onStep={step} />}
+        {shown?.kind === "pdf" && ready && <PdfView blob={ready.blob} onFail={fail} onBackdrop={close} />}
+        {shown?.kind === "video" && <video src={shown.url} controls playsInline onError={fail} className="max-h-full max-w-full rounded-md shadow-2xl" />}
+        {shown?.kind === "audio" && (
+          <div className="flex w-full max-w-[420px] flex-col items-center gap-4 text-center">
+            <FileIcon kind={file.kind} size={64} />
+            <p className="text-[15px] font-medium break-all">{file.name}</p>
+            <audio src={shown.url} controls onError={fail} className="w-full" />
+          </div>
         )}
-        {ready && kind === "pdf" && <iframe src={ready.objectUrl} title={file.name} className="size-full rounded-lg bg-white" />}
-        {ready && kind === "text" && (
-          <pre className="size-full overflow-auto rounded-lg bg-white p-4 text-[13px] leading-relaxed whitespace-pre-wrap text-black">{ready.text}</pre>
+        {shown?.kind === "text" && (
+          <div className="size-full overflow-auto overscroll-contain rounded-lg bg-white p-4 text-black">
+            <pre className="text-[13px] leading-relaxed whitespace-pre-wrap">{shown.text}</pre>
+            {shown.cut && <p className="mt-4 text-[13px] text-neutral-500">{t("This is the beginning of the file. Download it to see all of it.")}</p>}
+          </div>
         )}
-        {ready?.office?.kind === "sheet" && <SheetView sheets={ready.office.sheets} />}
-        {ready?.office?.kind === "docx" && <DocxView html={ready.office.html} title={file.name} />}
-        {ready && !kind && (
+        {shown?.kind === "sheet" && <SheetView sheets={shown.sheets} />}
+        {shown?.kind === "docx" && <DocxView html={shown.html} />}
+        {ready && !shown && (
           <div className="flex max-w-[340px] flex-col items-center gap-3 text-center">
             <FileIcon kind={file.kind} size={64} />
             <p className="text-[15px] font-medium break-all">{file.name}</p>
             <p className="text-[13px] text-white/60">
-              {phone
-                ? t("Kolbaba can't show this kind of file. Open it in another app or save it.")
-                : t("Kolbaba can't show this kind of file. Download it and open it on your computer.")}
+              {ready.broken
+                ? phone
+                  ? t("Kolbaba couldn't show this file. Open it in another app or save it.")
+                  : t("Kolbaba couldn't show this file. Download it and open it on your computer.")
+                : phone
+                  ? t("Kolbaba can't show this kind of file. Open it in another app or save it.")
+                  : t("Kolbaba can't show this kind of file. Download it and open it on your computer.")}
             </p>
             <button
               onClick={phone ? shareFile : download}
@@ -262,7 +315,7 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
           </div>
         )}
 
-        {count > 1 && (
+        {arrows && (
           <>
             <button
               onClick={() => go(index - 1)}
@@ -284,5 +337,84 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * Every file of the email in a row under the open one, like Quick Look: pictures as small pictures, the rest
+ * as their icon. A click opens the file; the open one is lit and kept in the middle.
+ */
+function Filmstrip({ files, index }: { files: ViewerFile[]; index: number }) {
+  return (
+    <div className="no-scrollbar mt-2.5 shrink-0 overflow-x-auto overscroll-contain px-3" role="tablist" aria-label={t("Files")}>
+      <div className="mx-auto flex w-max gap-1.5 py-1">
+        {files.map((file, i) => (
+          <Thumbnail key={`${i}-${file.url}`} file={file} active={i === index} onPick={() => useViewer.setState({ index: i })} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The icons' colours on the viewer's dark background. */
+const STRIP_TONES: Record<Attachment["kind"], string> = {
+  pdf: "text-red-400",
+  sheet: "text-emerald-400",
+  image: "text-amber-400",
+  doc: "text-sky-300",
+  zip: "text-white/70",
+  calendar: "text-white/70",
+};
+
+function Thumbnail({ file, active, onPick }: { file: ViewerFile; active: boolean; onPick: () => void }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const [picture, setPicture] = useState<string | null>(null);
+
+  // A picture's thumbnail is its whole download, so it starts only when the strip has scrolled it into sight.
+  useEffect(() => {
+    const el = button.current;
+    if (!el || file.kind !== "image" || !file.url) return;
+    let gone = false;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      void thumbnail(file.name, file.url!).then((src) => !gone && setPicture(src));
+    });
+    observer.observe(el);
+    return () => {
+      gone = true;
+      observer.disconnect();
+    };
+  }, [file.kind, file.name, file.url]);
+
+  useEffect(() => {
+    if (active) button.current?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [active]);
+
+  const Icon = ATTACHMENT_ICONS[file.kind];
+  const extension = file.name.includes(".") ? file.name.split(".").pop()!.slice(0, 5) : "";
+  return (
+    <button
+      ref={button}
+      role="tab"
+      aria-selected={active}
+      aria-label={file.name}
+      title={file.name}
+      onClick={onPick}
+      className={cn(
+        "relative size-12 shrink-0 overflow-hidden rounded-lg bg-white/10 transition-[opacity,box-shadow,transform] duration-150",
+        active ? "opacity-100 ring-2 ring-white" : "opacity-55 hover:opacity-100 active:scale-95",
+      )}
+    >
+      {picture ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={picture} alt="" draggable={false} className="size-full object-cover" />
+      ) : (
+        <span className="flex size-full flex-col items-center justify-center gap-0.5">
+          <Icon size={18} className={STRIP_TONES[file.kind]} />
+          {extension && <span className="max-w-full truncate px-0.5 text-[8.5px] leading-none font-semibold tracking-wide text-white/60 uppercase">{extension}</span>}
+        </span>
+      )}
+    </button>
   );
 }

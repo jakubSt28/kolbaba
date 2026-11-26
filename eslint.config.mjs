@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The website is its own Next.js project with its own lint setup.
     "site/**",
+    // pdf.js's own minified files, copied from the package when the app starts (next.config.ts).
+    "public/pdfjs/**",
   ]),
 ]);
 

@@ -2,7 +2,7 @@ import { CalendarDays, FileArchive, FileImage, FileSpreadsheet, FileText } from 
 import type { Attachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const ATTACHMENT_ICONS = {
+export const ATTACHMENT_ICONS = {
   pdf: FileText,
   image: FileImage,
   doc: FileText,

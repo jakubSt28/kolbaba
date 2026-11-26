@@ -117,6 +117,10 @@ export const reader: Dictionary = {
   "Open in another app": "Otevřít v jiné aplikaci",
   "Previous file": "Předchozí soubor",
   "Next file": "Další soubor",
+  "Kolbaba couldn't show this file. Open it in another app or save it.": "Tenhle soubor se Kolbabě nepodařilo zobrazit. Otevři ho v jiné aplikaci, nebo ho ulož.",
+  "Kolbaba couldn't show this file. Download it and open it on your computer.": "Tenhle soubor se Kolbabě nepodařilo zobrazit. Stáhni si ho a otevři v počítači.",
+  "This is the beginning of the file. Download it to see all of it.": "Tohle je začátek souboru. Celý ho uvidíš po stažení.",
+  "Page {i} of {n}": "Strana {i} z {n}",
   "This sheet is empty.": "Tenhle list je prázdný.",
   "Kolbaba shows the first {rows} rows and {cols} columns. Download the file to see all of it.":
     "Kolbaba ukazuje prvních {rows} řádků a {cols} sloupců. Celé to uvidíš ve staženém souboru.",

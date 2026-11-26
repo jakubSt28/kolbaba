@@ -802,3 +802,82 @@ button:disabled {
   font-size: 13px;
   font-weight: 500;
 }
+
+/*
+ * PDF pages in the attachment viewer (src/components/pdf-view.tsx). pdf.js lays an invisible copy of a
+ * page's text over its picture, so the text can be selected and copied; these are its rules from pdf.js's
+ * own stylesheet. `--total-scale-factor` (PDF points to pixels) is set on `.pdf-pages` and follows the zoom.
+ */
+.pdf-pages {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+.pdf-pages .textLayer {
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: clip;
+  color-scheme: only light;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+.pdf-pages .textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.pdf-pages .textLayer > :not(.markedContent),
+.pdf-pages .textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  z-index: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdf-pages .textLayer .markedContent {
+  display: contents;
+}
+.pdf-pages .textLayer span[role="img"] {
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pdf-pages .textLayer ::selection {
+  background: rgb(0 100 255 / 0.25);
+  color: transparent;
+}
+.pdf-pages .textLayer br::selection {
+  background: transparent;
+}
+.pdf-pages .textLayer .endOfContent {
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  display: block;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* A link in the PDF: a clickable area over its place on the page. */
+.pdf-pages .pdfLink {
+  position: absolute;
+  z-index: 2;
+  border-radius: 2px;
+}
+.pdf-pages .pdfLink:hover {
+  background: rgb(0 100 255 / 0.12);
+}

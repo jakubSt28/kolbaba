@@ -20,6 +20,9 @@
 # production
 /build
 
+# pdf.js's worker and fonts, copied from node_modules when the app starts or builds (next.config.ts)
+/public/pdfjs/
+
 # misc
 .DS_Store
 *.pem

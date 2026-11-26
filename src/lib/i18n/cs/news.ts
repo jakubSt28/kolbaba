@@ -12,6 +12,9 @@ export const news: Dictionary = {
   "New@@news": "Novinky",
 
   // Release notes
+  "See all of an email's files in a row, and zoom into photos and PDFs": "Všechny soubory z mailu vidíš v řadě a fotky i PDF si přiblížíš",
+  "Open an attachment and the email's other files show in a row under it: click one to switch, or use the arrow keys. Zoom into a photo or a PDF with a pinch, the mouse wheel or a double tap. On the phone, swipe a photo sideways for the next file and down to close it. PDFs open on every device with all their pages, and you can select and copy their text. Videos and voice recordings play right there. Escape closes the file.":
+    "Otevři přílohu a pod ní uvidíš v řadě ostatní soubory z mailu: kliknutím nebo šipkami na klávesnici mezi nimi přepínáš. Fotku i PDF přiblížíš roztažením prstů, kolečkem myši nebo dvojím klepnutím. Na telefonu přejetím po fotce do strany přejdeš na další soubor a přejetím dolů ji zavřeš. PDF se otevře na každém zařízení se všemi stránkami a text v něm jde označit a zkopírovat. Videa a hlasové nahrávky se přehrají rovnou tam. Klávesou Escape soubor zavřeš.",
   "Excel spreadsheets and Word documents open right in Kolbaba": "Excelové tabulky a wordové dokumenty se otevřou přímo v Kolbabě",
   "Tap an Excel, CSV or OpenDocument spreadsheet and it opens as a table, with a tab for each sheet. Word documents (.docx) open as a page you can read. No download, on the phone too.":
     "Klepni na tabulku z Excelu, CSV nebo OpenDocumentu a otevře se jako tabulka, s přepínáním mezi listy. Dokumenty z Wordu (.docx) se otevřou jako stránka ke čtení. Nic se nestahuje, ani na telefonu.",

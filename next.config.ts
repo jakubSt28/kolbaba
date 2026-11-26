@@ -1,4 +1,30 @@
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
+
+/**
+ * The attachment viewer draws PDFs with pdf.js, which fetches its worker, fonts and image decoders by URL.
+ * They're copied from the package into public/pdfjs (not in git) whenever `next dev` or `next build` starts,
+ * so they always match the installed pdf.js, on Vercel and in the self-hosted image alike.
+ */
+function copyPdfjsAssets() {
+  try {
+    const from = join(process.cwd(), "node_modules/pdfjs-dist");
+    const to = join(process.cwd(), "public/pdfjs");
+    const { version } = JSON.parse(readFileSync(join(from, "package.json"), "utf8")) as { version: string };
+    const stamp = join(to, "version.txt");
+    if (existsSync(stamp) && readFileSync(stamp, "utf8") === version) return;
+    rmSync(to, { recursive: true, force: true });
+    mkdirSync(to, { recursive: true });
+    for (const dir of ["cmaps", "standard_fonts", "wasm", "iccs"]) cpSync(join(from, dir), join(to, dir), { recursive: true });
+    // As .js: every server sends that with a JavaScript type, which a worker must have.
+    cpSync(join(from, "legacy/build/pdf.worker.min.mjs"), join(to, "pdf.worker.min.js"));
+    writeFileSync(stamp, version);
+  } catch (err) {
+    console.warn("Couldn't copy pdf.js's files to public/pdfjs; PDFs won't open in the attachment viewer.", err);
+  }
+}
+copyPdfjsAssets();
 
 const nextConfig: NextConfig = {
   // The self-hosted image (Dockerfile.selfhost) runs server.js; Vercel keeps its own output.

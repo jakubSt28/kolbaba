@@ -91,7 +91,7 @@ describe("readSheets", () => {
   });
 
   it("reads a UTF-8 CSV with a byte order mark", async () => {
-    const bytes = new TextEncoder().encode("﻿Jméno,Město\nAnna,Brno\n");
+    const bytes = new TextEncoder().encode("\uFEFFJméno,Město\nAnna,Brno\n");
     const [sheet] = await readSheets(bytes.buffer as ArrayBuffer, "people.csv");
     expect(texts(sheet.rows as { text: string }[][])).toEqual([
       ["Jméno", "Město"],

@@ -33,8 +33,11 @@ export interface Sheet {
 export const MAX_ROWS = 1000;
 export const MAX_COLS = 100;
 
-/** A CSV from Czech Excel is often windows-1250; UTF-8 first, as a wrong guess there would garble every letter. */
-function decodeText(bytes: Uint8Array) {
+/**
+ * Text as its author wrote it. A CSV or text file from an older Czech program is often windows-1250;
+ * UTF-8 first, as a wrong guess there would garble every letter.
+ */
+export function decodeText(bytes: Uint8Array) {
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
@@ -48,7 +51,7 @@ export async function readSheets(data: ArrayBuffer, name: string): Promise<Sheet
   const opts = { sheetRows: MAX_ROWS + 1, dense: true } as const;
   const book =
     ext === "csv" || ext === "tsv"
-      ? XLSX.read(decodeText(new Uint8Array(data)).replace(/^﻿/, ""), { ...opts, type: "string" })
+      ? XLSX.read(decodeText(new Uint8Array(data)).replace(/^\uFEFF/, ""), { ...opts, type: "string" })
       : XLSX.read(data, { ...opts, type: "array" });
 
   const hidden = new Set((book.Workbook?.Sheets ?? []).filter((s) => s.Hidden).map((s) => s.name));
@@ -118,26 +121,47 @@ export function columnName(index: number) {
   return name;
 }
 
+/** What a Word document is made of once mammoth has turned it into HTML. Everything else is dropped. */
+const DOCUMENT_TAGS = new Set(
+  "p h1 h2 h3 h4 h5 h6 strong b em i u s sup sub br hr a img table thead tbody tr td th ul ol li blockquote pre code span div".split(" "),
+);
+
 /**
- * A Word document as a whole HTML page for a sandboxed frame: no script runs, and only its own pictures load,
- * so opening it can't tell the sender anything.
+ * A Word document as HTML that is safe to put on the page: only a document's own tags, no attribute that
+ * could run anything, links only to the web or an email address, and only the pictures stored in the file
+ * itself, so opening it can't tell the sender anything.
  */
 export async function readDocx(data: ArrayBuffer): Promise<string> {
   const mammoth = (await import("mammoth/mammoth.browser.min.js")).default;
   const { value } = await mammoth.convertToHtml({ arrayBuffer: data });
-  return `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
-<base target="_blank">
-<style>
-  body { margin: 0; padding: 32px 24px 48px; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; background: #fff; overflow-wrap: anywhere; }
-  main { max-width: 760px; margin: 0 auto; }
-  h1, h2, h3, h4 { line-height: 1.25; margin: 1.4em 0 0.5em; }
-  p { margin: 0 0 0.8em; }
-  img { max-width: 100%; height: auto; }
-  table { border-collapse: collapse; margin: 1em 0; max-width: 100%; display: block; overflow-x: auto; }
-  td, th { border: 1px solid #d4d4d4; padding: 4px 8px; vertical-align: top; }
-  td p, th p { margin: 0; }
-  a { color: #2563eb; }
-  @media (max-width: 600px) { body { padding: 20px 16px 32px; } }
-</style></head><body><main>${value}</main></body></html>`;
+  const page = new DOMParser().parseFromString(value, "text/html");
+  for (const el of page.body.querySelectorAll("*")) {
+    const tag = el.tagName.toLowerCase();
+    if (!DOCUMENT_TAGS.has(tag)) {
+      // An unknown wrapper keeps its text; something that isn't text at all (a script, a frame) goes whole.
+      if (/^(script|style|iframe|object|embed|svg|math|template|noscript|link|meta|base|form|input|button|select|textarea)$/.test(tag)) el.remove();
+      else el.replaceWith(...el.childNodes);
+      continue;
+    }
+    const href = tag === "a" ? (el.getAttribute("href") ?? "").trim() : "";
+    const src = tag === "img" ? (el.getAttribute("src") ?? "") : "";
+    const spans = tag === "td" || tag === "th" ? [el.getAttribute("colspan"), el.getAttribute("rowspan")] : [];
+    const alt = el.getAttribute("alt");
+    for (const name of el.getAttributeNames()) el.removeAttribute(name);
+    if (tag === "a" && /^(https?:|mailto:)/i.test(href)) {
+      el.setAttribute("href", href);
+      el.setAttribute("target", "_blank");
+      el.setAttribute("rel", "noopener noreferrer");
+    }
+    if (tag === "img") {
+      if (!/^data:image\/(png|jpe?g|gif|webp|bmp);/i.test(src)) el.remove();
+      else {
+        el.setAttribute("src", src);
+        if (alt) el.setAttribute("alt", alt);
+      }
+    }
+    if (spans[0] && /^\d+$/.test(spans[0])) el.setAttribute("colspan", spans[0]);
+    if (spans[1] && /^\d+$/.test(spans[1])) el.setAttribute("rowspan", spans[1]);
+  }
+  return page.body.innerHTML;
 }

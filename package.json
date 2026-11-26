@@ -49,6 +49,7 @@
     "next": "16.4.6",
     "nodemailer": "^10.6.1",
     "openai": "^7.32.0",
+    "pdfjs-dist": "^6.5.438",
     "postgres": "^3.4.9",
     "radix-ui": "^1.7.0",
     "react": "19.3.0",
