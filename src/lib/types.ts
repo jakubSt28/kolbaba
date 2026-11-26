@@ -566,7 +566,8 @@ export type AgentStep =
   | { kind: "tasks_listed"; view: string }
   | { kind: "task_created"; title: string }
   | { kind: "task_updated"; title: string; done?: boolean }
-  | { kind: "task_deleted"; title: string };
+  | { kind: "task_deleted"; title: string }
+  | { kind: "feedback"; text: string };
 
 export type FolderId =
   | "inbox"

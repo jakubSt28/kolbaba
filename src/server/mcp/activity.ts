@@ -45,6 +45,7 @@ const GENERIC_TITLES: Record<AgentAction, string> = {
   task_create: "Tasks",
   task_update: "Tasks",
   task_delete: "Tasks",
+  feedback: "Feedback",
 };
 const GENERIC = new Set(Object.values(GENERIC_TITLES));
 
@@ -205,6 +206,7 @@ const CLIENT_ACTION: Record<AgentAction, ClientAction> = {
   task_create: "schedule",
   task_update: "schedule",
   task_delete: "trash",
+  feedback: "note",
 };
 
 function eventDto(e: EventRow, pendingOutbox: Set<string>): AgentEvent {

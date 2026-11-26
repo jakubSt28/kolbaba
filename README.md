@@ -78,11 +78,12 @@ connect an agent, you choose which mailboxes it sees and one of three access lev
 | **Full access** | the above, plus `send` and `unsubscribe` |
 
 - The calendar and the tasks are shared with an agent apart from the mailboxes. With them, it also gets `list_calendars`, `list_events`, `create_event`, `update_event`, `delete_event` (inviting guests needs Full access) and `list_task_lists`, `list_tasks`, `create_task`, `update_task`, `delete_task`; Read only lets it look, not change.
+- Every agent also gets `submit_feedback`, whatever its access level. The server instructions ask it to report each thing it couldn't do (a missing tool or option, a failed call); reports show on `/admin` and as a step in AI activity.
 - Every call shows up under AI activity in the app, with Undo where the step can be undone. You can pause or remove an agent at any time.
 - Agents get email content marked as untrusted third-party text, not instructions.
 - Sending waits at least 30 seconds, so you can stop it, and agents are limited to 20 emails and 100 recipients an hour.
 
-The tools are defined in [`src/server/mcp/tools.ts`](src/server/mcp/tools.ts), [`calendar-tools.ts`](src/server/mcp/calendar-tools.ts) and [`task-tools.ts`](src/server/mcp/task-tools.ts).
+The tools are defined in [`src/server/mcp/tools.ts`](src/server/mcp/tools.ts), [`calendar-tools.ts`](src/server/mcp/calendar-tools.ts), [`task-tools.ts`](src/server/mcp/task-tools.ts) and [`feedback-tools.ts`](src/server/mcp/feedback-tools.ts).
 
 ## How it works
 

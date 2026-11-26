@@ -89,6 +89,8 @@ export const LIMITS = {
     { key: `agent-recipients:agent:${agentId}`, max: 100, windowMs: HOUR, cost: recipients },
   ],
   feedback: (userId: string): Limit => ({ key: `feedback:user:${userId}`, max: 20, windowMs: HOUR }),
+  /** Feedback an AI agent sends over MCP (submit_feedback), per agent. */
+  agentFeedback: (agentId: string): Limit => ({ key: `agent-feedback:agent:${agentId}`, max: 20, windowMs: HOUR }),
   /** The form on kolbaba.app asking for a copy on one's own server; there is no account to count against. */
   selfHostRequest: (ip: string): Limit => ({ key: `self-host:ip:${ip}`, max: 5, windowMs: HOUR }),
   /** Crash reports from the app's error screen, per user (`user:…`) or, signed out, per address (`ip:…`). */

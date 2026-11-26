@@ -4,6 +4,7 @@ import { plusState, type PlusState } from "@/lib/plus";
 import { today } from "./ai-usage";
 import { SESSION_MAX_DAYS } from "./auth/session";
 import { db, schema } from "./db";
+import type { AgentFeedbackKind } from "./db/schema";
 import { env } from "./env";
 import { PLUS_COLUMNS } from "./plus";
 
@@ -56,13 +57,25 @@ export interface AdminOverview {
   calendar: { opened: number; week: number; month: number; connected: number };
   /** Who asked for a copy on their own server, newest first. */
   waitlist: { id: string; email: string; runsOn: "vps" | "home" | "unsure"; note: string; lang: string; ref: string | null; createdAt: Date }[];
+  /** What AI agents reported over MCP (submit_feedback), newest first. */
+  agentFeedback: {
+    id: string;
+    kind: AgentFeedbackKind;
+    text: string;
+    tool: string | null;
+    task: string | null;
+    app: string;
+    agentName: string;
+    email: string;
+    createdAt: Date;
+  }[];
 }
 
 const DAY = 24 * 3600 * 1000;
 
 export async function adminOverview(): Promise<AdminOverview> {
   const since90 = new Date(Date.now() - 90 * DAY);
-  const [users, mailboxes, scores, feedback, aiCosts, cardCounts, waitlist, calendarUse, calendarCounts] = await Promise.all([
+  const [users, mailboxes, scores, feedback, aiCosts, cardCounts, waitlist, calendarUse, calendarCounts, agentFeedback] = await Promise.all([
     db()
       .select({
         id: schema.users.id,
@@ -151,6 +164,22 @@ export async function adminOverview(): Promise<AdminOverview> {
       .from(schema.calendarSources)
       .leftJoin(schema.calendars, eq(schema.calendars.sourceId, schema.calendarSources.id))
       .groupBy(schema.calendarSources.userId),
+    db()
+      .select({
+        id: schema.agentFeedback.id,
+        kind: schema.agentFeedback.kind,
+        text: schema.agentFeedback.text,
+        tool: schema.agentFeedback.tool,
+        task: schema.agentFeedback.task,
+        app: schema.agentFeedback.app,
+        agentName: schema.agentFeedback.agentName,
+        email: schema.users.email,
+        createdAt: schema.agentFeedback.createdAt,
+      })
+      .from(schema.agentFeedback)
+      .innerJoin(schema.users, eq(schema.users.id, schema.agentFeedback.userId))
+      .orderBy(desc(schema.agentFeedback.createdAt))
+      .limit(200),
   ]);
   const useByUser = new Map(calendarUse.map((u) => [u.user_id, u]));
   const calendarsByUser = new Map(calendarCounts.map((c) => [c.userId, c]));
@@ -213,6 +242,7 @@ export async function adminOverview(): Promise<AdminOverview> {
       connected: list.filter((u) => u.calendar.calendars > 0).length,
     },
     waitlist,
+    agentFeedback,
   };
 }
 

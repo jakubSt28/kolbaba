@@ -18,6 +18,9 @@ export const news: Dictionary = {
   "Excel spreadsheets and Word documents open right in Kolbaba": "Excelové tabulky a wordové dokumenty se otevřou přímo v Kolbabě",
   "Tap an Excel, CSV or OpenDocument spreadsheet and it opens as a table, with a tab for each sheet. Word documents (.docx) open as a page you can read. No download, on the phone too.":
     "Klepni na tabulku z Excelu, CSV nebo OpenDocumentu a otevře se jako tabulka, s přepínáním mezi listy. Dokumenty z Wordu (.docx) se otevřou jako stránka ke čtení. Nic se nestahuje, ani na telefonu.",
+  "Your AI agent tells us what it couldn't do for you": "Tvůj AI agent nám dá vědět, co pro tebe nezvládl",
+  "When a connected agent like Claude or ChatGPT can't do something you asked because Kolbaba is missing a tool or an option, it reports it to us, so we know what to build next. It describes the problem without the content of your mail. You see each report in AI activity, like the agent's other steps.":
+    "Když připojený agent jako Claude nebo ChatGPT nezvládne něco, o co ho požádáš, protože Kolbabě chybí nástroj nebo možnost, nahlásí nám to a my víme, co přidat. Problém popíše bez obsahu tvé pošty. Každé hlášení uvidíš v AI aktivitě jako ostatní kroky agenta.",
   "See a new event in the calendar while you write it": "Novou událost vidíš v kalendáři, zatímco ji píšeš",
   "On the computer, the event shows in its place in the calendar as you fill it in: first just the time, then its name, and it moves when you change the time. Right-click an empty time to add an event there, or right-click an event to open, change or delete it.":
     "Na počítači se událost ukazuje na svém místě v kalendáři, zatímco ji vyplňuješ: nejdřív jen čas, pak i název, a když změníš čas, posune se. Pravým tlačítkem na volný čas tam přidáš událost, pravým na událost ji otevřeš, upravíš nebo smažeš.",

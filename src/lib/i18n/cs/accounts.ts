@@ -118,6 +118,7 @@ export const accounts: Dictionary = {
   "Pinned **{subject}**": "Připnul **{subject}**",
   "Unpinned **{subject}**": "Odepnul **{subject}**",
   "Snoozed **{subject}** until {when}": "Odložil **{subject}** do {when}",
+  "Told {app} what it couldn't do: **{text}**": "Dal vědět aplikaci {app}, co nešlo: **{text}**",
 
   // Welcome (no mailbox yet)
   "Welcome to Kolbaba": "Vítej v Kolbabě",

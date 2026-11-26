@@ -86,6 +86,16 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     action: "files",
   },
   {
+    id: "2026-11-26-agent-feedback",
+    date: "2026-11-26",
+    icon: "agents",
+    title: tk("Your AI agent tells us what it couldn't do for you"),
+    body: tk(
+      "When a connected agent like Claude or ChatGPT can't do something you asked because Kolbaba is missing a tool or an option, it reports it to us, so we know what to build next. It describes the problem without the content of your mail. You see each report in AI activity, like the agent's other steps.",
+    ),
+    action: "agents",
+  },
+  {
     id: "2026-11-24-calendar-new-event-preview",
     date: "2026-11-24",
     icon: "calendar",

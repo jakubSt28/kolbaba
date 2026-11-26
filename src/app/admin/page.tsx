@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { BRAND } from "@/lib/brand";
-import { translate, translateCount, type Locale } from "@/lib/i18n";
+import { tk, translate, translateCount, type Locale } from "@/lib/i18n";
 import { FEATURE_GROUPS, FEATURE_LABELS } from "@/lib/usage";
 import { adminOverview, isAdmin, type AdminOverview } from "@/server/admin";
 import { getUser } from "@/server/auth/session";
@@ -84,6 +84,7 @@ async function Overview({ searchParams }: { searchParams: SearchParams }) {
       <Users data={data} locale={locale} />
       <Waitlist data={data} locale={locale} />
       <Feedback data={data} locale={locale} />
+      <AgentFeedback data={data} locale={locale} />
     </div>
   );
 }
@@ -405,6 +406,63 @@ function Feedback({ data, locale }: { data: AdminOverview; locale: Locale }) {
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="px-1 text-[13px] text-ink-3">{translate(locale, "Nothing yet.")}</p>
+      )}
+    </section>
+  );
+}
+
+const AGENT_FEEDBACK_KINDS = {
+  missing: { label: tk("Missing"), className: "bg-accent-soft text-accent-text" },
+  failed: { label: tk("Failed"), className: "bg-danger/12 text-danger" },
+  confusing: { label: tk("Unclear"), className: "bg-warning/15 text-warning" },
+  idea: { label: tk("Idea"), className: "bg-hover text-ink-2" },
+} as const;
+
+/** What AI agents couldn't do for people (submit_feedback over MCP): what to build next. */
+function AgentFeedback({ data, locale }: { data: AdminOverview; locale: Locale }) {
+  return (
+    <section>
+      <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Feedback from AI agents (MCP)")}</h2>
+      {data.agentFeedback.length ? (
+        <div className="overflow-x-auto rounded-[16px] bg-solid shadow-[inset_0_0_0_0.5px_var(--line)]">
+          <table className="w-full min-w-[860px] text-left text-[13px]">
+            <thead className="text-[11.5px] text-ink-3">
+              <tr className="border-b border-line">
+                <th className="px-4 py-2.5 font-medium">{translate(locale, "Date")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "User")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "Agent")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "Type")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "Tool")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "What it couldn't do")}</th>
+                <th className="px-3 py-2.5 font-medium">{translate(locale, "Task")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.agentFeedback.map((f) => {
+                const kind = AGENT_FEEDBACK_KINDS[f.kind] ?? AGENT_FEEDBACK_KINDS.idea;
+                return (
+                  <tr key={f.id} className="align-top">
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-2 tabular-nums">{formatDate(locale, f.createdAt)}</td>
+                    <td className="px-3 py-3 font-medium">
+                      <a href={`mailto:${f.email}`} className="text-ink hover:underline">
+                        {f.email}
+                      </a>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-2">{f.agentName && f.agentName !== f.app ? `${f.app} · ${f.agentName}` : f.app}</td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex h-6 items-center rounded-full px-2 text-[11.5px] font-medium whitespace-nowrap ${kind.className}`}>{translate(locale, kind.label)}</span>
+                    </td>
+                    <td className="px-3 py-3 font-mono text-[12px] whitespace-nowrap text-ink-2">{f.tool ?? "—"}</td>
+                    <td className="min-w-[320px] px-3 py-3 leading-relaxed whitespace-pre-wrap text-ink">{f.text}</td>
+                    <td className="px-3 py-3 text-ink-2">{f.task ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className="px-1 text-[13px] text-ink-3">{translate(locale, "Nothing yet.")}</p>
       )}

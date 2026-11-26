@@ -1,3 +1,4 @@
+import { BRAND } from "./brand";
 import { tk } from "./i18n";
 import type { AgentStep } from "./types";
 
@@ -102,5 +103,7 @@ export function describeStep(step: AgentStep, { t: tr, tn, when, folder }: StepF
         : tr(tk("Changed the task **{title}**"), { title: clean(step.title) || tr("(No title)") });
     case "task_deleted":
       return tr(tk("Moved the task **{title}** to Trash"), { title: clean(step.title) || tr("(No title)") });
+    case "feedback":
+      return tr(tk("Told {app} what it couldn't do: **{text}**"), { app: BRAND.name, text: clean(step.text) });
   }
 }

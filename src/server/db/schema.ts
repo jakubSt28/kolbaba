@@ -1347,7 +1347,8 @@ export type AgentAction =
   | "event_delete"
   | "task_create"
   | "task_update"
-  | "task_delete";
+  | "task_delete"
+  | "feedback";
 
 export const agentEvents = pgTable(
   "agent_events",
@@ -1375,6 +1376,37 @@ export const agentEvents = pgTable(
     undone: boolean().notNull().default(false),
   },
   (t) => [index().on(t.userId, t.at)],
+);
+
+export type AgentFeedbackKind = "missing" | "failed" | "confusing" | "idea";
+
+/**
+ * What an AI agent tells us over MCP (submit_feedback): a tool it needed and Kolbaba doesn't
+ * have, a call that failed, something unclear. For the admin page; goes with the account.
+ */
+export const agentFeedback = pgTable(
+  "agent_feedback",
+  {
+    id: id("afb"),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Null once the user disconnects the agent; `app` and `agentName` keep who it was. */
+    agentId: text().references(() => agents.id, { onDelete: "set null" }),
+    /** Host app, e.g. "Claude Code". */
+    app: text().notNull(),
+    /** Model/agent name, e.g. "Claude". */
+    agentName: text().notNull(),
+    kind: text().$type<AgentFeedbackKind>().notNull(),
+    /** What the agent couldn't do or what is missing, in its own words. */
+    text: text().notNull(),
+    /** The tool it called or wished it had, when there is one. */
+    tool: text(),
+    /** What the user asked for, in the agent's words (the `intent` of the task). */
+    task: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.createdAt)],
 );
 
 /**

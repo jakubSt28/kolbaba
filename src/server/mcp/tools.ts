@@ -42,6 +42,7 @@ import { hasWorker, nudgeWorker } from "../worker-client";
 import { logEvent, type EventInput, type RunContext, type UndoData } from "./activity";
 import { registerCalendarTools } from "./calendar-tools";
 import { registerTaskTools } from "./task-tools";
+import { registerFeedbackTools } from "./feedback-tools";
 import { attachmentLink, LINK_MINUTES } from "./attachment-links";
 import { allows, PERMISSION_LABELS } from "./config";
 import { textToEditorHtml } from "./markdown";
@@ -1004,6 +1005,7 @@ export function registerTools(server: McpServer, ctx: ToolContext) {
   const kit = { guard, run, ok, log, fail: (message: string) => new ToolError(message), intent, READ, ORGANIZE };
   registerCalendarTools(server, ctx, kit);
   registerTaskTools(server, ctx, kit);
+  registerFeedbackTools(server, ctx, kit);
 }
 
 /**
