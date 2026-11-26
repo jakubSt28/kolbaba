@@ -8,6 +8,7 @@ import { t } from "@/lib/i18n";
 import type { Attachment } from "@/lib/types";
 import { clearFiles, loadFile, thumbnail } from "@/lib/attachment-cache";
 import { decodeText, MAX_TEXT_CHARS, type Preview } from "@/lib/attachment-preview";
+import { downloadsOpenInstead, saveWithToast } from "@/lib/download";
 import { readDocx, readSheets, type Sheet } from "@/lib/office-preview";
 import { cn } from "@/lib/utils";
 import { ATTACHMENT_ICONS, FileIcon } from "./file-icon";
@@ -166,6 +167,8 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
   // Phones hand the file to another app (Files, Word, Numbers…); computers download it.
   const [touch] = useState(() => matchMedia("(pointer: coarse)").matches);
   const [phone] = useState(() => touch && canShareFiles());
+  // On a Home Screen iPhone Download opens the share sheet already; a second button for it would be a twin.
+  const [twin] = useState(downloadsOpenInstead);
 
   useEffect(() => {
     if (!file.url) return;
@@ -205,14 +208,12 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
   /** The file turned out damaged while drawing (a picture this browser can't decode, a PDF with a password). */
   const fail = useCallback(() => setLoaded((l) => (l.state === "ready" ? { ...l, shown: null, broken: true } : l)), []);
 
+  // Already here, it goes straight to the share sheet where downloading would only show it (a Home Screen app on iPhone).
   const download = useCallback(() => {
-    const a = document.createElement("a");
-    a.href = `${file.url}?download`;
-    a.download = file.name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-  }, [file]);
+    if (!file.url) return;
+    const blob = ready && new Blob([ready.blob], { type: ready.type || ready.blob.type });
+    saveWithToast(file.name, `${file.url}?download`, blob || undefined);
+  }, [file, ready]);
 
   // The file is already here, so the share sheet opens straight from the tap (Safari wants that).
   const shareFile = useCallback(() => {
@@ -258,7 +259,7 @@ function Viewer({ file, index, count }: { file: ViewerFile; index: number; count
             <span className="hidden sm:inline">{t("Show in conversation")}</span>
           </button>
         )}
-        {phone && (
+        {phone && !twin && (
           <button onClick={shareFile} disabled={!ready} aria-label={t("Share or save")} className={roundButton}>
             <Share size={18} />
           </button>

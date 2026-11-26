@@ -107,6 +107,8 @@ export const reader: Dictionary = {
   Download: "Stáhnout",
   "Download all": "Stáhnout vše",
   "Couldn't download the attachments. Try again in a moment.": "Přílohy se nepodařilo stáhnout. Zkus to za chvíli znovu.",
+  "Couldn't download the file. Try again in a moment.": "Soubor se nepodařilo stáhnout. Zkus to za chvíli znovu.",
+  "{name} is ready": "{name} je připravený",
   "Show in conversation": "Zobrazit v konverzaci",
   // Attachment viewer
   "{i} of {n}": "{i} z {n}",

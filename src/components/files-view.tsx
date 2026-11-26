@@ -4,6 +4,7 @@ import { ChevronDown, Download, LoaderCircle, Paperclip } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect, useMemo, useState } from "react";
 import { t, tk } from "@/lib/i18n";
+import { saveOnPhone } from "@/lib/download";
 import { api, LIVE } from "@/lib/live";
 import { useMail } from "@/lib/store";
 import type { FileItem, FileKindFilter } from "@/lib/types";
@@ -187,7 +188,10 @@ export function FilesView({ mobile = false }: { mobile?: boolean }) {
                     <a
                       href={`${f.url}?download`}
                       download={f.name}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        saveOnPhone(e, f.name, `${f.url}?download`);
+                      }}
                       aria-label={t("Download {name}", { name: f.name })}
                       className={cn(
                         "flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-selected hover:text-ink",

@@ -44,7 +44,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { DropdownMenu, Popover } from "radix-ui";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { copyCode, threadCode } from "@/lib/codes";
-import { downloadAll } from "@/lib/download";
+import { downloadAll, saveOnPhone } from "@/lib/download";
 import { openAttachment } from "./attachment-viewer";
 import { FileIcon } from "./file-icon";
 import { ContactView } from "./contacts";
@@ -1013,6 +1013,7 @@ function AttachmentCard({ attachments, index }: { attachments: Attachment[]; ind
         <a
           href={url && `${url}?download`}
           download={name}
+          onClick={(e) => url && saveOnPhone(e, name, `${url}?download`)}
           aria-label={t("Download {name}", { name })}
           className="absolute top-1/2 right-2.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-solid text-ink-2 opacity-0 shadow-[var(--shadow-panel)] transition-[opacity,color] group-hover:opacity-100 hover:text-accent-text focus-visible:opacity-100 pointer-coarse:bg-transparent pointer-coarse:text-ink-3 pointer-coarse:opacity-100 pointer-coarse:shadow-none"
         >

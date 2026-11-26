@@ -1,0 +1,54 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveFile } from "./download";
+import { useMail } from "./store";
+
+describe("saveFile on a Home Screen iPhone", () => {
+  const share = vi.fn<(data: { files: File[] }) => Promise<void>>();
+
+  beforeEach(() => {
+    share.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { standalone: true, canShare: () => true, share });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }))),
+    );
+    useMail.setState({ toasts: [] });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("hands the file to the share sheet instead of a link that would only show it", async () => {
+    await saveFile("invoice.pdf", "/api/attachments/a1?download");
+    expect(share).toHaveBeenCalledOnce();
+    const [file] = share.mock.calls[0][0].files;
+    expect(file.name).toBe("invoice.pdf");
+    expect(file.type).toBe("application/pdf");
+    expect(await file.text()).toBe("%PDF-1.7");
+  });
+
+  it("uses the file already here without fetching it again", async () => {
+    await saveFile("notes.txt", "/api/attachments/a2?download", new Blob(["hi"], { type: "text/plain" }));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(share.mock.calls[0][0].files[0].type).toBe("text/plain");
+  });
+
+  it("offers a fresh tap when the fetch outlasted the first one", async () => {
+    share.mockRejectedValueOnce(Object.assign(new Error("no gesture"), { name: "NotAllowedError" }));
+    await saveFile("invoice.pdf", "/api/attachments/a1?download");
+    const toast = useMail.getState().toasts.at(-1);
+    expect(toast?.action).toBeDefined();
+    toast!.action!.run();
+    expect(share).toHaveBeenCalledTimes(2);
+  });
+
+  it("stays quiet when the sheet is dismissed", async () => {
+    share.mockRejectedValueOnce(Object.assign(new Error("cancelled"), { name: "AbortError" }));
+    await saveFile("invoice.pdf", "/api/attachments/a1?download");
+    expect(useMail.getState().toasts).toHaveLength(0);
+  });
+
+  it("throws when the file can't be fetched", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 502 })));
+    await expect(saveFile("invoice.pdf", "/api/attachments/a1?download")).rejects.toThrow();
+    expect(share).not.toHaveBeenCalled();
+  });
+});
