@@ -468,6 +468,21 @@ button:hover > .task-check:not([data-on]) {
     background: var(--top-edge, var(--canvas));
     transition: background-color 0.25s;
   }
+  /*
+   * It sits above everything, overlays included, so it takes their colour itself: a dialog's backdrop
+   * (.top-dim) dims it like the page below, an open file (.top-viewer) paints it the viewer's black.
+   * Otherwise the strip stays light above them, as if the app were cut off at the top.
+   */
+  :root:has(.top-dim) #top-edge {
+    background: color-mix(in srgb, var(--top-edge, var(--canvas)), black 22%);
+  }
+  :root[data-theme="dark"]:has(.top-dim) #top-edge {
+    background: color-mix(in srgb, var(--top-edge, var(--canvas)), black 45%);
+  }
+  :root:has(.top-viewer) #top-edge {
+    /* VIEWER_BACKGROUND in src/components/attachment-viewer.tsx */
+    background: #0b0b0c !important;
+  }
   .desktop-shell {
     padding-top: calc(max(env(safe-area-inset-top), 12px) + 0.5rem);
   }

@@ -191,7 +191,7 @@ function NewsDialog({ mobile }: { mobile: boolean }) {
   return (
     <Dialog.Root open={!!tab} onOpenChange={(o) => !o && setOpen(false)}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
+        <Dialog.Overlay className="top-dim fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
         <Dialog.Content
           aria-describedby={undefined}
           className="sheet fixed top-1/2 left-1/2 z-50 flex max-h-[min(640px,calc(100dvh-32px))] w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[22px] outline-none data-[state=open]:animate-[dialog-in_180ms_cubic-bezier(0.32,0.72,0,1)]"

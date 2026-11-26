@@ -340,7 +340,7 @@ export function SnoozeSheetHost() {
         <>
           <motion.div
             key="snooze-scrim"
-            className="fixed inset-0 z-50 bg-black/25"
+            className="top-dim fixed inset-0 z-50 bg-black/25"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

@@ -39,7 +39,7 @@ export function FolderDialogHost() {
   return (
     <Dialog.Root open={!!request} onOpenChange={(o) => !o && closeDialog()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
+        <Dialog.Overlay className="top-dim fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
         <Dialog.Content
           aria-describedby={undefined}
           className="glass-strong fixed top-1/2 left-1/2 z-50 w-[min(400px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-[22px] p-5 outline-none data-[state=open]:animate-[dialog-in_180ms_cubic-bezier(0.32,0.72,0,1)]"

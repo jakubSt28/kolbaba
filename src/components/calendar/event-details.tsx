@@ -63,7 +63,7 @@ export function EventDetailsHost({ mobile }: { mobile: boolean }) {
       <AnimatePresence>
         {open && event && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
+            <motion.div className="top-dim fixed inset-0 z-40 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
             <DetailsSheet event={event} onClose={close} />
           </>
         )}

@@ -33,7 +33,7 @@ export function EventEditorHost({ mobile }: { mobile: boolean }) {
       <Dialog.Portal>
         {/* On a computer the calendar stays clear behind, so the event can be seen taking shape there. */}
         <Dialog.Overlay
-          className={cn("fixed inset-0 z-50 data-[state=open]:animate-[fade-in_140ms_ease-out]", mobile ? "bg-black/20 dark:bg-black/45" : "bg-black/[0.04] dark:bg-black/20")}
+          className={cn("fixed inset-0 z-50 data-[state=open]:animate-[fade-in_140ms_ease-out]", mobile ? "top-dim bg-black/20 dark:bg-black/45" : "bg-black/[0.04] dark:bg-black/20")}
         />
         <Dialog.Content
           ref={sheet}

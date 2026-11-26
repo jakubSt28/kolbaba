@@ -287,9 +287,7 @@ export function ThreadView({ threadId, mobile }: { threadId: string; mobile?: bo
     if (mode !== "forward") setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 60);
   };
 
-  if (!thread) {
-    return <div className="flex h-full items-center justify-center text-[13px] text-ink-3">{t("This conversation is gone.")}</div>;
-  }
+  if (!thread) return <MissingThread threadId={threadId} mobile={mobile} />;
 
   return (
     <div className="relative h-full">
@@ -322,6 +320,48 @@ export function ThreadView({ threadId, mobile }: { threadId: string; mobile?: bo
         </article>
       </div>
       {!replyDraftId && <ActionPill thread={thread} advance={!mobile} onReply={() => startReply("reply")} />}
+    </div>
+  );
+}
+
+/**
+ * A tab whose conversation isn't here (a refresh moved it, the app was reopened with it showing): fetched
+ * again, with its outline in the meantime instead of an empty screen. Deleted for good, its tab closes.
+ */
+function MissingThread({ threadId, mobile }: { threadId: string; mobile?: boolean }) {
+  const recoverThread = useMail((s) => s.recoverThread);
+  const [failed, setFailed] = useState(false);
+  const retry = () => {
+    setFailed(false);
+    recoverThread(threadId).catch(() => setFailed(true));
+  };
+  useEffect(() => {
+    recoverThread(threadId).catch(() => setFailed(true));
+  }, [recoverThread, threadId]);
+
+  if (!LIVE) return <div className="flex h-full items-center justify-center text-[13px] text-ink-3">{t("This conversation is gone.")}</div>;
+  if (failed) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
+        <p className="text-[14px] text-ink-2">{t("Couldn't load the conversation. Check your connection.")}</p>
+        <button onClick={retry} className="press h-9 rounded-full bg-hover px-4 text-[13.5px] font-medium text-ink">
+          {t("Try again")}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div aria-busy className={cn("mx-auto w-full max-w-[760px] px-5 md:px-8", mobile ? "pt-3" : "pt-7")}>
+      <div className="h-6 w-3/4 animate-pulse rounded-lg bg-hover" />
+      <div className="mt-6 flex items-center gap-3">
+        <div className="size-9 shrink-0 animate-pulse rounded-full bg-hover" />
+        <div className="h-3.5 w-40 animate-pulse rounded-full bg-hover" />
+      </div>
+      <div className="mt-6 space-y-2.5">
+        {[92, 100, 76, 84].map((w, i) => (
+          <div key={i} className="h-3 animate-pulse rounded-full bg-hover" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+        ))}
+      </div>
     </div>
   );
 }

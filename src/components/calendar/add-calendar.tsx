@@ -17,7 +17,7 @@ const MAX_FILE_BYTES = 3_000_000;
 
 const dialogClass =
   "glass-strong fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-24px)] w-[min(460px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[22px] p-5 outline-none data-[state=open]:animate-[dialog-in_180ms_cubic-bezier(0.32,0.72,0,1)]";
-const overlayClass = "fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45";
+const overlayClass = "top-dim fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45";
 const inputClass = "h-11 w-full rounded-[12px] bg-canvas px-3 text-[15px] outline-none shadow-[inset_0_0_0_1px_var(--line)] placeholder:text-ink-3 focus:shadow-[inset_0_0_0_1.5px_var(--accent)]";
 
 /** "Add calendar": the mailboxes' own calendars first, then every other way in. Also where one of Kolbaba's calendars gets renamed. */

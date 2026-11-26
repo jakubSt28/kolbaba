@@ -24,7 +24,7 @@ export function ImagesExplainerHost() {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
+        <Dialog.Overlay className="top-dim fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
         <Dialog.Content ref={sheet} className="glass-strong fixed inset-x-3 bottom-[max(12px,var(--safe-bottom))] z-50 mx-auto max-h-[calc(100dvh-24px)] max-w-[380px] overflow-y-auto rounded-[26px] p-5 outline-none data-[state=open]:animate-[menu-in_180ms_ease-out] sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2">
           <ImagesPreview load={load} />
           <Dialog.Title className="mt-4 text-[18px] font-semibold tracking-[-0.02em]">{t("Images are hidden on purpose")}</Dialog.Title>

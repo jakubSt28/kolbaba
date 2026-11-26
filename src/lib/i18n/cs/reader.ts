@@ -64,6 +64,7 @@ export const reader: Dictionary = {
 
   // Reader: conversation
   "This conversation is gone.": "Tahle konverzace už tu není.",
+  "Couldn't load the conversation. Check your connection.": "Konverzaci se nepodařilo načíst. Zkontroluj připojení.",
   "Reply all": "Odpovědět všem",
   Forward: "Přeposlat",
   Pinned: "Připnuté",

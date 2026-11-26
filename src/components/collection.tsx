@@ -22,7 +22,7 @@ export function CollectionHost() {
   return (
     <Dialog.Root open={!!tab} onOpenChange={(o) => !o && setOpen(false)}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
+        <Dialog.Overlay className="top-dim fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-[fade-in_140ms_ease-out] dark:bg-black/45" />
         <Dialog.Content
           aria-describedby={undefined}
           className="sheet fixed top-1/2 left-1/2 z-50 flex max-h-[min(760px,calc(100dvh-32px))] w-[min(640px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[22px] outline-none data-[state=open]:animate-[dialog-in_180ms_cubic-bezier(0.32,0.72,0,1)]"
@@ -113,7 +113,7 @@ function PostcardAlbum() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setOpen(null)}
-            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/45 p-5 backdrop-blur-sm"
+            className="top-dim fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/45 p-5 backdrop-blur-sm"
           >
             <div className="w-full max-w-[560px]" onClick={(e) => e.stopPropagation()}>
               <Postcard at={postcardDate(postcards[open])} />

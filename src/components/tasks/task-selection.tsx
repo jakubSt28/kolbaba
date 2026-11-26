@@ -150,7 +150,7 @@ function Sheet({ open, title, onClose, children }: { open: boolean; title: strin
     <AnimatePresence>
       {open && (
         <>
-          <motion.div key="scrim" className="fixed inset-0 z-50 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div key="scrim" className="top-dim fixed inset-0 z-50 bg-black/25" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.div
             key="sheet"
             ref={ref}

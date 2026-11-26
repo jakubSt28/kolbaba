@@ -7,7 +7,7 @@ import { watchForUpdates } from "@/lib/app-update";
 import { watchForCodes } from "@/lib/codes";
 import { takeConnectMessage } from "@/lib/connect-message";
 import { getLocale, resolveLocale, setLocale, t } from "@/lib/i18n";
-import { fetchThread, LIVE } from "@/lib/live";
+import { type ApiError, fetchThread, LIVE } from "@/lib/live";
 import { pushState, registerServiceWorker, setBadge } from "@/lib/push-client";
 import { badgeTotal, isFolderId, useMail } from "@/lib/store";
 import { useShortcuts } from "@/lib/use-shortcuts";
@@ -74,8 +74,9 @@ async function handleDeepLink(url: URL) {
   if (folder && isFolderId(folder)) setFolder(folder);
   if (thread) {
     if (LIVE && !useMail.getState().threads[thread]) {
-      const full = await fetchThread(thread).catch(() => null);
-      if (full) useMail.setState((s) => ({ threads: { ...s.threads, [thread]: full } }));
+      const full = await fetchThread(thread).catch((err: ApiError) => err);
+      if (!(full instanceof Error)) useMail.setState((s) => ({ threads: { ...s.threads, [thread]: full } }));
+      else pushToast({ message: full.status === 404 ? t("This conversation is gone.") : t("Couldn't load the conversation. Check your connection.") });
     }
     openThread(thread);
   }
@@ -195,7 +196,11 @@ export function MailApp() {
     };
     const onWorkerMessage = (e: MessageEvent) => {
       if (e.data?.type === "mail-changed") void refresh();
-      if (e.data?.type === "open-url") void refresh().then(() => handleDeepLink(new URL(e.data.url)));
+      // A tapped notification opens its email at once; the list catches up meanwhile.
+      if (e.data?.type === "open-url") {
+        void handleDeepLink(new URL(e.data.url));
+        void refresh();
+      }
     };
     const unsubscribeBadge = useMail.subscribe((s, prev) => {
       if (s.threads !== prev.threads || s.badgeMode !== prev.badgeMode) setBadge(badgeTotal(s.threads, s.badgeMode));

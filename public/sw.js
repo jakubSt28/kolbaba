@@ -3,6 +3,8 @@
  * assets around. Plain JS on purpose: served as-is from /sw.js with scope "/". */
 
 const SHELL = "kolbaba-shell-v1";
+/** How long opening the app waits for the network before the cached app shell opens instead. */
+const SLOW_NETWORK_MS = 3000;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.addAll(["/"])).catch(() => {}));
@@ -31,7 +33,10 @@ self.addEventListener("fetch", (event) => {
         (hit) =>
           hit ||
           fetch(request).then((res) => {
-            if (res.ok) caches.open(SHELL).then((c) => c.put(request, res.clone()));
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(SHELL).then((c) => c.put(request, copy));
+            }
             return res;
           }),
       ),
@@ -39,15 +44,26 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Pages: network first, fall back to the cached app shell when offline.
+  // Pages: network first, fall back to the cached app shell when offline. On a slow connection the app
+  // doesn't wait on a white screen either: after a moment the cached shell opens (it shows the mail it
+  // has and fetches the rest), and the page still on its way replaces it in the cache for next time.
   if (request.mode === "navigate") {
+    const network = fetch(request).then((res) => {
+      if (res.ok && url.pathname === "/") {
+        // Copied now: by the time the cache opens, the page may be reading this response already.
+        const copy = res.clone();
+        caches.open(SHELL).then((c) => c.put("/", copy));
+      }
+      return res;
+    });
+    const cached = () => caches.match("/");
     event.respondWith(
-      fetch(request)
-        .then((res) => {
-          if (res.ok && url.pathname === "/") caches.open(SHELL).then((c) => c.put("/", res.clone()));
-          return res;
-        })
-        .catch(() => caches.match("/").then((hit) => hit || Response.error())),
+      url.pathname === "/"
+        ? Promise.race([
+            network.catch(() => cached().then((hit) => hit || Response.error())),
+            new Promise((resolve) => setTimeout(resolve, SLOW_NETWORK_MS)).then(() => cached().then((hit) => hit || network)),
+          ])
+        : network.catch(() => cached().then((hit) => hit || Response.error())),
     );
   }
 });

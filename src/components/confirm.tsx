@@ -55,7 +55,7 @@ export function ConfirmHost() {
       {choice && (
         <motion.div
           key="choice"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
+          className="top-dim fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.12 } }}
@@ -106,7 +106,7 @@ export function ConfirmHost() {
       {request && (
         <motion.div
           key="confirm"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
+          className="top-dim fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.12 } }}

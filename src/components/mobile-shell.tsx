@@ -508,7 +508,6 @@ const MobileAction = forwardRef<HTMLButtonElement, ActionButtonProps>(function M
 function DetailScreen({ tabId, threadId, contactId }: { tabId: string; threadId?: string; contactId?: string }) {
   const closeTab = useMail((s) => s.closeTab);
   const folder = useMail((s) => s.folder);
-  const thread = useMail((s) => (threadId ? s.threads[threadId] : undefined));
   const back = () => closeTab(tabId);
   // Back with a swipe to the right from anywhere on the conversation, not just its edge.
   const [ref, x] = useSwipe({ way: "right", onSwipe: back });
@@ -530,7 +529,8 @@ function DetailScreen({ tabId, threadId, contactId }: { tabId: string; threadId?
         </button>
       </div>
       <div className="min-h-0 flex-1">
-        {thread && threadId && <MobileThread threadId={threadId} />}
+        {/* Also while its conversation is being fetched again: ThreadView shows its outline, never an empty screen. */}
+        {threadId && <MobileThread threadId={threadId} />}
         {contactId && <ContactView contactId={contactId} />}
       </div>
     </motion.div>

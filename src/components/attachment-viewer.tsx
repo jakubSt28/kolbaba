@@ -48,7 +48,7 @@ export function openAttachment(files: ViewerFile[], index = 0) {
 
 const close = () => useViewer.setState({ open: false });
 
-/** Behind an open file, and the phone's status bar above it. Solid: the mail showing through looked like a mistake. */
+/** Behind an open file, and the phone's status bar above it (also in globals.css, .top-viewer). Solid: the mail showing through looked like a mistake. */
 const VIEWER_BACKGROUND = "#0b0b0c";
 
 const canShareFiles = () =>
@@ -117,17 +117,13 @@ export function AttachmentViewerHost() {
     if (!open) clearFiles();
   }, [open]);
 
-  // The status bar of the Home Screen app takes the page's background colour (iOS 26 ignores theme-color),
-  // so while a file is open the page is the viewer's colour: no white strip above it.
+  // The browser's bar in the viewer's colour too (Chrome on Android, Safari before iOS 26). The Home Screen
+  // app's status bar is #top-edge, which follows .top-viewer below (globals.css).
   useEffect(() => {
     if (!open) return;
-    const root = document.documentElement;
-    const before = root.style.backgroundColor;
     const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((meta) => [meta, meta.content] as const);
-    root.style.backgroundColor = VIEWER_BACKGROUND;
     for (const [meta] of metas) meta.content = VIEWER_BACKGROUND;
     return () => {
-      root.style.backgroundColor = before;
       for (const [meta, content] of metas) meta.content = content;
     };
   }, [open]);
@@ -136,7 +132,10 @@ export function AttachmentViewerHost() {
   return (
     <Dialog.Root open={open && !!file} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] data-[state=open]:animate-[fade-in_140ms_ease-out]" style={{ background: VIEWER_BACKGROUND }} />
+        <Dialog.Overlay
+          className="top-viewer fixed inset-0 z-[60] data-[state=open]:animate-[fade-in_140ms_ease-out]"
+          style={{ background: VIEWER_BACKGROUND }}
+        />
         <Dialog.Content
           aria-describedby={undefined}
           data-attachment-viewer=""

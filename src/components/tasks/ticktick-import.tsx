@@ -33,7 +33,7 @@ export function TickTickImportHost() {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && step.kind !== "busy" && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/25 data-[state=open]:animate-[fade-in_160ms_ease-out]" />
+        <Dialog.Overlay className="top-dim fixed inset-0 z-50 bg-black/25 data-[state=open]:animate-[fade-in_160ms_ease-out]" />
         <Dialog.Content onOpenAutoFocus={(e) => e.preventDefault()} className="glass-strong fixed top-1/2 left-1/2 z-50 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[22px] p-5 text-ink shadow-[var(--shadow-float)] outline-none">
           <div className="mb-3 flex items-start gap-3">
             <Dialog.Title className="flex-1 text-[17px] font-semibold tracking-[-0.01em]">{t("Import from TickTick")}</Dialog.Title>

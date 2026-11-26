@@ -143,6 +143,11 @@ export interface MailState {
   /** Live mode: re-read mailbox status (e.g. to notice that a first import finished). */
   refreshAccounts: () => Promise<void>;
   loadThread: (id: string, opts?: { images?: boolean }) => Promise<void>;
+  /**
+   * Fetches a conversation that's open in a tab but no longer here (a refresh moved it out, the cache
+   * was cleared). Gone for good: its tabs close. Throws when the server can't be reached.
+   */
+  recoverThread: (id: string) => Promise<void>;
   /** Open a conversation that may not be in any list loaded here (from Files, a contact). */
   openThreadById: (id: string, opts?: { newTab?: boolean }) => Promise<void>;
   /** The address book (src/server/contacts.ts), loaded when it's opened. */
@@ -862,14 +867,41 @@ export const useMail = create<MailState>()(
         }
       };
 
-      const replaceThreads = (incoming: Thread[], drop: (t: Thread) => boolean, since: number) =>
+      const replaceThreads = (incoming: Thread[], drop: (t: Thread) => boolean, since: number) => {
+        const open: string[] = [];
         set((s) => {
           const threads = { ...s.threads };
           const ids = new Set(incoming.map((t) => t.id));
-          for (const t of Object.values(threads)) if (drop(t) && !ids.has(t.id) && !unsettled(t.id, since)) delete threads[t.id];
+          const inTabs = new Set(s.tabs.flatMap((tab) => (tab.kind === "thread" ? [tab.threadId] : [])));
+          for (const t of Object.values(threads)) {
+            if (!drop(t) || ids.has(t.id) || unsettled(t.id, since)) continue;
+            // Open on screen: it stays there while its new place (archived elsewhere, say) is fetched.
+            if (inTabs.has(t.id)) open.push(t.id);
+            else delete threads[t.id];
+          }
           mergeIn(threads, incoming, since);
           return { threads };
         });
+        for (const id of open) void get().recoverThread(id).catch(() => {});
+      };
+
+      /** A conversation deleted elsewhere: out of the store and out of its tabs, with a word why it closed. */
+      const threadGone = (id: string) => {
+        const open = get().tabs.some((tab) => tab.kind === "thread" && tab.threadId === id);
+        set((s) => {
+          const threads = { ...s.threads };
+          delete threads[id];
+          const tabs = s.tabs.filter((tab) => !(tab.kind === "thread" && tab.threadId === id));
+          return {
+            threads,
+            tabs,
+            activeTabId: tabs.some((tab) => tab.id === s.activeTabId) ? s.activeTabId : null,
+            selectedId: s.selectedId === id ? null : s.selectedId,
+          };
+        });
+        if (open) toast({ message: t("This conversation is gone.") });
+      };
+      const recovering = new Map<string, Promise<void>>();
 
       /**
        * The No reply yet list from the server: those conversations wait, others here that waited no
@@ -1553,14 +1585,34 @@ export const useMail = create<MailState>()(
               return { threads: { ...s.threads, [id]: next } };
             });
           } catch (err) {
-            if ((err as ApiError).status === 404) {
-              set((s) => {
-                const threads = { ...s.threads };
-                delete threads[id];
-                return { threads };
-              });
-            } else toast({ message: (err as Error).message });
+            if ((err as ApiError).status === 404) threadGone(id);
+            else toast({ message: (err as Error).message });
           }
+        },
+
+        recoverThread: (id) => {
+          if (!LIVE) return Promise.resolve();
+          // The reader and a refresh can both ask at once: one request.
+          const running = recovering.get(id);
+          if (running) return running;
+          const since = Date.now();
+          const run = fetchThread(id)
+            .then(
+              (full) => {
+                set((s) => {
+                  const local = s.threads[id];
+                  const next = local && unsettled(id, since) ? keepLocal(full, local) : { ...full, unread: local?.unread ?? full.unread };
+                  return { threads: { ...s.threads, [id]: next } };
+                });
+              },
+              (err) => {
+                if ((err as ApiError).status !== 404) throw err;
+                threadGone(id);
+              },
+            )
+            .finally(() => recovering.delete(id));
+          recovering.set(id, run);
+          return run;
         },
 
         setScope: (scope) => {
