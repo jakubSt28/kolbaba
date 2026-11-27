@@ -3,13 +3,14 @@ import type { Dictionary } from "..";
 /** /admin, the operator's overview. */
 export const admin: Dictionary = {
   Admin: "Admin",
+  Overview: "Přehled",
+  "Own server": "Vlastní server",
   "Back to {app}": "Zpět do aplikace {app}",
   Users: "Uživatelé",
   "Active in the last 7 days": "Aktivní za posledních 7 dní",
   "Mailboxes with an error": "Schránky s chybou",
   "NPS, last 90 days": "NPS za 90 dní",
   "{n} answers": { one: "{n} odpověď", few: "{n} odpovědi", other: "{n} odpovědí" },
-  "Registered users": "Registrovaní uživatelé",
   User: "Uživatel",
   "Signed up": "Registrace",
   "Last active": "Naposledy aktivní",
@@ -26,7 +27,6 @@ export const admin: Dictionary = {
   "May be contacted": "Můžeme odpovědět",
   "Nothing yet.": "Zatím nic.",
   // Feedback AI agents send over MCP (submit_feedback)
-  "Feedback from AI agents (MCP)": "Zpětná vazba od AI agentů (MCP)",
   Agent: "Agent",
   Type: "Typ",
   Tool: "Nástroj",
@@ -36,7 +36,6 @@ export const admin: Dictionary = {
   Failed: "Selhalo",
   Unclear: "Nejasné",
   "Asked for setup help": "Chtějí pomoct se serverem",
-  "Help with your own server": "Pomoc s vlastním serverem",
   Joined: "Zapsáno",
   "Where it will run": "Kde to poběží",
   "At home": "Doma",

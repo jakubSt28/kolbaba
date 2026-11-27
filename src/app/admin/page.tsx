@@ -11,6 +11,7 @@ import { getUser } from "@/server/auth/session";
 import { pageLocale } from "@/server/i18n";
 import { usageOverview, type UsageOverview } from "@/server/usage";
 import { PlusGiftButton } from "./plus-gift";
+import { AdminTabs } from "./tabs";
 
 export const metadata: Metadata = {
   title: `Admin · ${BRAND.name}`,
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-/** The operator's overview: who signed up, what they use, and what people tell us. Only for ADMIN_EMAILS. */
+/** The operator's overview, in tabs: the numbers, what people use, who signed up, and what they tell us. Only for ADMIN_EMAILS. */
 export default function AdminPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="canvas min-h-dvh px-4 pt-[max(env(safe-area-inset-top),32px)] pb-[max(var(--safe-bottom),32px)]">
@@ -50,41 +51,52 @@ async function Overview({ searchParams }: { searchParams: SearchParams }) {
         </Link>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label={translate(locale, "Users")} value={String(data.users.length)} />
-        <Stat label={translate(locale, "Active in the last 7 days")} value={String(data.activeWeek)} />
-        <Stat label={translate(locale, "Mailboxes with an error")} value={String(data.mailboxErrors)} warn={data.mailboxErrors > 0} />
-        <Stat
-          label={translate(locale, "NPS, last 90 days")}
-          value={data.nps.score === null ? "—" : String(data.nps.score)}
-          hint={translateCount(locale, data.nps.answers, "{n} answer", "{n} answers")}
-        />
-        <Stat label={translate(locale, "AI, last 30 days")} value={money(data.ai.month)} hint={translate(locale, "Today {cost}", { cost: money(data.ai.today) })} />
-        <Stat
-          label={translate(locale, "Paying for Plus")}
-          value={String(data.plus.paying)}
-          hint={[translateCount(locale, data.plus.gifts, "{n} gift", "{n} gifts"), translateCount(locale, data.plus.trials, "{n} trial", "{n} trials")].join(" · ")}
-        />
-        <Stat
-          label={translate(locale, "Hidden cards, 30 days")}
-          value={data.cards.month ? percent(locale, data.cards.hidden / data.cards.month) : "—"}
-          hint={translate(locale, "{hidden} of {cards} cards", { hidden: String(data.cards.hidden), cards: String(data.cards.month) })}
-          warn={data.cards.month >= 50 && data.cards.hidden / data.cards.month > 0.05}
-        />
-        <Stat label={translate(locale, "Asked for setup help")} value={String(data.waitlist.length)} />
-        <Stat
-          label={translate(locale, "Opened the calendar")}
-          value={data.users.length ? `${data.calendar.opened} · ${percent(locale, data.calendar.opened / data.users.length)}` : "—"}
-          hint={translate(locale, "{week} in the last 7 days · {month} in 30", { week: String(data.calendar.week), month: String(data.calendar.month) })}
-        />
-        <Stat label={translate(locale, "Have a calendar connected")} value={String(data.calendar.connected)} />
-      </div>
+      <AdminTabs
+        initial={typeof params.tab === "string" ? params.tab : "overview"}
+        tabs={[
+          { id: "overview", label: translate(locale, "Overview"), content: <Stats data={data} locale={locale} /> },
+          { id: "usage", label: translate(locale, "Feature usage"), content: <Usage usage={usage} others={others} locale={locale} /> },
+          { id: "users", label: translate(locale, "Users"), count: data.users.length, content: <Users data={data} locale={locale} /> },
+          { id: "feedback", label: translate(locale, "Feedback"), count: data.feedback.length, content: <Feedback data={data} locale={locale} /> },
+          { id: "agents", label: translate(locale, "AI agents"), count: data.agentFeedback.length, content: <AgentFeedback data={data} locale={locale} /> },
+          { id: "server", label: translate(locale, "Own server"), count: data.waitlist.length, content: <Waitlist data={data} locale={locale} /> },
+        ]}
+      />
+    </div>
+  );
+}
 
-      <Usage usage={usage} others={others} locale={locale} />
-      <Users data={data} locale={locale} />
-      <Waitlist data={data} locale={locale} />
-      <Feedback data={data} locale={locale} />
-      <AgentFeedback data={data} locale={locale} />
+/** The headline numbers: a glance at how things stand. */
+function Stats({ data, locale }: { data: AdminOverview; locale: Locale }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Stat label={translate(locale, "Users")} value={String(data.users.length)} />
+      <Stat label={translate(locale, "Active in the last 7 days")} value={String(data.activeWeek)} />
+      <Stat label={translate(locale, "Mailboxes with an error")} value={String(data.mailboxErrors)} warn={data.mailboxErrors > 0} />
+      <Stat
+        label={translate(locale, "NPS, last 90 days")}
+        value={data.nps.score === null ? "—" : String(data.nps.score)}
+        hint={translateCount(locale, data.nps.answers, "{n} answer", "{n} answers")}
+      />
+      <Stat label={translate(locale, "AI, last 30 days")} value={money(data.ai.month)} hint={translate(locale, "Today {cost}", { cost: money(data.ai.today) })} />
+      <Stat
+        label={translate(locale, "Paying for Plus")}
+        value={String(data.plus.paying)}
+        hint={[translateCount(locale, data.plus.gifts, "{n} gift", "{n} gifts"), translateCount(locale, data.plus.trials, "{n} trial", "{n} trials")].join(" · ")}
+      />
+      <Stat
+        label={translate(locale, "Hidden cards, 30 days")}
+        value={data.cards.month ? percent(locale, data.cards.hidden / data.cards.month) : "—"}
+        hint={translate(locale, "{hidden} of {cards} cards", { hidden: String(data.cards.hidden), cards: String(data.cards.month) })}
+        warn={data.cards.month >= 50 && data.cards.hidden / data.cards.month > 0.05}
+      />
+      <Stat label={translate(locale, "Asked for setup help")} value={String(data.waitlist.length)} />
+      <Stat
+        label={translate(locale, "Opened the calendar")}
+        value={data.users.length ? `${data.calendar.opened} · ${percent(locale, data.calendar.opened / data.users.length)}` : "—"}
+        hint={translate(locale, "{week} in the last 7 days · {month} in 30", { week: String(data.calendar.week), month: String(data.calendar.month) })}
+      />
+      <Stat label={translate(locale, "Have a calendar connected")} value={String(data.calendar.connected)} />
     </div>
   );
 }
@@ -135,10 +147,10 @@ function Usage({ usage, others, locale }: { usage: UsageOverview; others: boolea
           <span className="font-normal text-ink-3"> · {translate(locale, "last 30 days")}</span>
         </h2>
         <nav className="flex rounded-[10px] bg-hover p-0.5 text-[12.5px]">
-          <Link href="/admin" replace scroll={false} className={filter(!others)}>
+          <Link href="/admin?tab=usage" replace scroll={false} className={filter(!others)}>
             {translate(locale, "Everyone")}
           </Link>
-          <Link href="/admin?usage=others" replace scroll={false} className={filter(others)}>
+          <Link href="/admin?tab=usage&usage=others" replace scroll={false} className={filter(others)}>
             {translate(locale, "Without admins")}
           </Link>
         </nav>
@@ -196,7 +208,6 @@ function Usage({ usage, others, locale }: { usage: UsageOverview; others: boolea
 function Users({ data, locale }: { data: AdminOverview; locale: Locale }) {
   return (
     <section>
-      <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Registered users")}</h2>
       <div className="overflow-x-auto rounded-[16px] bg-solid shadow-[inset_0_0_0_0.5px_var(--line)]">
         <table className="w-full min-w-[1240px] text-left text-[13px]">
           <thead className="text-[11.5px] text-ink-3">
@@ -336,7 +347,6 @@ function Waitlist({ data, locale }: { data: AdminOverview; locale: Locale }) {
   }
   return (
     <section>
-      <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Help with your own server")}</h2>
       {data.waitlist.length > 0 && (
         <p className="px-1 pb-2 text-[12.5px] text-ink-3 tabular-nums">
           {[...sources].sort((a, b) => b[1] - a[1]).map(([source, count]) => `${source} ${count}`).join(" · ")}
@@ -383,7 +393,6 @@ function Waitlist({ data, locale }: { data: AdminOverview; locale: Locale }) {
 function Feedback({ data, locale }: { data: AdminOverview; locale: Locale }) {
   return (
     <section>
-      <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Feedback")}</h2>
       {data.feedback.length ? (
         <ul className="divide-y divide-line overflow-hidden rounded-[16px] bg-solid shadow-[inset_0_0_0_0.5px_var(--line)]">
           {data.feedback.map((f) => (
@@ -424,7 +433,6 @@ const AGENT_FEEDBACK_KINDS = {
 function AgentFeedback({ data, locale }: { data: AdminOverview; locale: Locale }) {
   return (
     <section>
-      <h2 className="px-1 pb-2 text-[13px] font-semibold text-ink-2">{translate(locale, "Feedback from AI agents (MCP)")}</h2>
       {data.agentFeedback.length ? (
         <div className="overflow-x-auto rounded-[16px] bg-solid shadow-[inset_0_0_0_0.5px_var(--line)]">
           <table className="w-full min-w-[860px] text-left text-[13px]">
