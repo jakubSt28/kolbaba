@@ -66,6 +66,15 @@ export type NewsAction =
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-27-seznam-faster",
+    date: "2026-11-27",
+    icon: "mailboxes",
+    title: tk("Mail from Seznam arrives faster"),
+    body: tk(
+      "New mail in Seznam and other mailboxes that can't announce it on their own now shows up in Kolbaba within half a minute, not after two.",
+    ),
+  },
+  {
     id: "2026-11-26-attachment-viewer-strip",
     date: "2026-11-26",
     icon: "attachments",

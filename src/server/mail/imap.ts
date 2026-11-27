@@ -84,6 +84,12 @@ const WATCH_MAX_BACKOFF_MS = 15 * 60_000;
 const WATCH_HEALTHY_MS = 60_000;
 /** Coalesce bursts (e.g. "mark all read" in another client emits one event per message). */
 const NOTIFY_DEBOUNCE_MS = 1_000;
+/**
+ * A server without IDLE (Seznam) never says that mail came, and imapflow then asks only every two
+ * minutes. We ask this often instead: a NOOP is a few bytes, and the database hears of it only when
+ * something changed.
+ */
+const NO_IDLE_POLL_MS = 30_000;
 
 const SYNC_FETCH: FetchQueryObject = {
   uid: true,
@@ -98,6 +104,8 @@ const SYNC_FETCH: FetchQueryObject = {
 export interface ImapAdapterOptions {
   /** Extra imapflow options, for server quirks and for tests (e.g. `disableAutoEnable` to force the no-CONDSTORE path). */
   imap?: Partial<ImapFlowOptions>;
+  /** Tests: how often `watch` asks a server without IDLE for news. */
+  pollEveryMs?: number;
 }
 
 export function createImapAdapter(account: AdapterAccount, options: ImapAdapterOptions = {}): MailAdapter {
@@ -1019,9 +1027,19 @@ class ImapAdapter implements MailAdapter {
         c.on("flags", notify);
         const closed = new Promise<void>((resolve) => c.once("close", resolve));
         const startedAt = Date.now();
+        let poll: ReturnType<typeof setInterval> | undefined;
         try {
           await c.connect();
           await c.mailboxOpen("INBOX", { readOnly: true });
+          // Capabilities as the server lists them after signing in.
+          if (!c.capabilities.has("IDLE")) {
+            let asking = false;
+            poll = setInterval(() => {
+              if (asking || !c.usable) return;
+              asking = true;
+              void c.noop().catch(() => {}).finally(() => (asking = false));
+            }, this.options.pollEveryMs ?? NO_IDLE_POLL_MS);
+          }
           firstResult(null);
           // Whatever happened while we were disconnected is only visible to a sync.
           if (connectedBefore) notify();
@@ -1036,6 +1054,7 @@ class ImapAdapter implements MailAdapter {
           // Wrong password won't fix itself soon; retry slowly in case it is changed elsewhere.
           if (mapped instanceof MailAuthError) failures = Math.max(failures, 10);
         } finally {
+          clearInterval(poll);
           c.removeAllListeners();
           c.on("error", () => {});
           c.close();
